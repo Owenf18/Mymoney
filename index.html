@@ -381,7 +381,21 @@ function addGoal(){const accountOpts=data.netAccounts.map(a=>a.id);openForm('New
 function editGoal(i){let g=data.goals[i];openForm('Edit savings goal',[{key:'name',label:'Goal name',value:g.name},{key:'target',label:'Target amount',type:'number',value:g.target},{key:'current',label:'Current amount',type:'number',value:g.current},{key:'monthly',label:'Monthly contribution',type:'number',value:g.monthly},{key:'icon',label:'Icon',value:g.icon||'🎯'},{key:'accountId',label:'Linked account (optional)',type:'select',options:['__NONE__',...data.netAccounts.map(a=>a.id)],value:g.accountId||'__NONE__'}],v=>{let a=['target','current','monthly'].map(k=>num(v[k]));if(!v.name.trim()||a.some(x=>!Number.isFinite(x)))return false;let linked=accountById(v.accountId);Object.assign(g,{name:v.name.trim(),current:linked?Number(linked.balance||0):a[1],target:a[0],monthly:a[2],icon:v.icon||'🎯',accountId:linked?linked.id:''});save()})}
 function delGoal(i){askDelete('savings goal',()=>{data.goals.splice(i,1);save()})}
 function normalizeTransactionDate(v){let s=String(v||'').trim();if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;let m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);if(m)return `${m[3]}-${String(m[1]).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}`;return s}
-function addTransaction(){openForm('Add transaction',[{key:'date',label:'Transaction date',type:'date',value:new Date().toISOString().slice(0,10)},{key:'name',label:'Description',placeholder:'Groceries'},{key:'cat',label:'Category',placeholder:'Food'},{key:'amount',label:'Amount',type:'number',value:'25'},{key:'type',label:'Type',type:'select',options:['expense','income'],value:'expense'}],v=>{let a=num(v.amount),d=normalizeTransactionDate(v.date);if(!d||!v.name.trim()||!Number.isFinite(a))return false;data.transactions.push({date:d,name:v.name.trim(),cat:v.cat.trim()||'Other',amount:a,type:v.type});save()})}
+function addTransaction(){
+const accounts=data.netAccounts.filter(a=>a.type==='asset');
+openForm('add transaction',[
+  {
+ key:'date',
+ label:'transaction date',
+ type:'date',
+ value:new
+Date().tolSOString().slice(0,10)  },
+  },
+  {
+ key:'name',
+ label:'description',
+ placeholder:'Groceries'
+  
 function editTransaction(i){let t=data.transactions[i];openForm('Edit transaction',[{key:'date',label:'Transaction date',type:'date',value:/^\d{4}-\d{2}-\d{2}$/.test(t.date||'')?t.date:new Date().toISOString().slice(0,10)},{key:'name',label:'Description',value:t.name},{key:'cat',label:'Category',value:t.cat},{key:'amount',label:'Amount',type:'number',value:t.amount},{key:'type',label:'Type',type:'select',options:['expense','income'],value:t.type}],v=>{let a=num(v.amount),d=normalizeTransactionDate(v.date);if(!d||!v.name.trim()||!Number.isFinite(a))return false;Object.assign(t,{date:d,name:v.name.trim(),cat:v.cat.trim()||'Other',amount:a,type:v.type});save()})}
 function delTrans(i){askDelete('transaction',()=>{data.transactions.splice(i,1);save()})}
 function addInvestment(){openForm('Add investment account',[{key:'name',label:'Account name',placeholder:'Roth IRA'},{key:'balance',label:'Current balance',type:'number',value:'0'},{key:'contribution',label:'Monthly contribution',type:'number',value:'0'}],v=>{let b=num(v.balance),c=num(v.contribution);if(!v.name.trim()||!Number.isFinite(b)||!Number.isFinite(c))return false;data.investments.push({name:v.name.trim(),balance:b,contribution:c});save()})}
