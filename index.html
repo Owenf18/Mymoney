@@ -33,9 +33,50 @@ button,input,select{font:inherit} button{cursor:pointer}
 .note{font-size:11px;color:var(--muted);line-height:1.5}.empty{padding:30px;text-align:center;color:var(--muted);font-size:13px}
 @media(max-width:900px){.side{width:72px;padding:18px 10px}.brand{font-size:0;text-align:center}.brand span{font-size:22px}.nav button{font-size:0;text-align:center}.nav .icon{font-size:17px;width:auto}.mini-tip,.side-bottom{display:none}.main{margin-left:72px;width:calc(100% - 72px);padding:22px}.grid{grid-template-columns:repeat(2,1fr)}.two,.three,.taxbox{grid-template-columns:1fr}}
 @media(max-width:600px){.main{padding:15px}.grid{grid-template-columns:1fr 1fr;gap:9px}.card{padding:15px}.big{font-size:23px}.two,.three,.taxbox,.formgrid{grid-template-columns:1fr}.top{align-items:flex-start}.date{display:none}}
+.modal{display:none;position:fixed;inset:0;background:rgba(25,32,28,.38);z-index:50;align-items:center;justify-content:center;padding:18px}.modal.open{display:flex}.modalbox{width:min(520px,100%);background:#fff;border-radius:20px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.18)}.modalbox h2{margin:0 0 5px}.modalform{display:grid;gap:12px;margin-top:18px}.modalactions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}.modalmsg{font-size:12px;color:var(--danger);min-height:16px}</style>
+
+<style>
+.auth-overlay{position:fixed;inset:0;background:rgba(15,23,42,.88);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}
+.auth-card{width:min(430px,100%);background:#fff;border-radius:24px;padding:28px;box-shadow:0 25px 80px rgba(0,0,0,.25)}
+.auth-logo{font-size:28px;font-weight:800;margin-bottom:18px}.auth-logo span{color:#4f8f68}
+.auth-card h1{margin:0 0 8px}.auth-card p{margin:0 0 18px;color:#64748b}
+.auth-card label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}
+.auth-card input{width:100%;box-sizing:border-box;padding:13px 14px;border:1px solid #dbe3ea;border-radius:12px;font-size:16px}
+.auth-primary{width:100%;margin-top:16px}
+.auth-link{display:block;width:100%;border:0;background:none;margin-top:12px;color:#4f8f68;font-weight:700;cursor:pointer;padding:6px}
+.auth-note{margin-top:18px;padding:12px;background:#f3f7f4;border-radius:12px;font-size:12px;line-height:1.5;color:#52615a}
+.auth-message{display:none;padding:10px 12px;border-radius:10px;background:#fff3cd;color:#735c00;font-size:13px;margin-bottom:12px}
+.account-bar{position:fixed;right:16px;top:16px;z-index:500;background:rgba(255,255,255,.96);border:1px solid #e2e8f0;border-radius:14px;padding:7px 8px 7px 12px;display:none;align-items:center;gap:9px;box-shadow:0 8px 25px rgba(15,23,42,.08);font-size:12px}
+#accountEmail{font-weight:700;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#syncStatus{color:#64748b}
+@media(max-width:700px){.account-bar{top:8px;right:8px;max-width:calc(100% - 16px)}#accountEmail{max-width:120px}}
 </style>
+
 </head>
 <body>
+
+<div id="authOverlay" class="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-logo">My<span>Money</span></div>
+    <h1 id="authTitle">Sign in to MyMoney</h1>
+    <p id="authSubtitle">Your financial information is private to your account.</p>
+    <div id="authMessage" class="auth-message"></div>
+    <label>Email</label>
+    <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com">
+    <label>Password</label>
+    <input id="authPassword" type="password" autocomplete="current-password" placeholder="At least 6 characters">
+    <button class="btn auth-primary" onclick="submitAuth()">Sign in</button>
+    <button class="auth-link" onclick="toggleAuthMode()" id="authToggle">Create an account</button>
+    <button class="auth-link" onclick="resetPassword()">Forgot password?</button>
+    <div class="auth-note">Your financial data is stored under your private account and is protected by database access rules. GitHub only hosts the app code.</div>
+  </div>
+</div>
+<div id="accountBar" class="account-bar">
+  <span id="accountEmail"></span>
+  <span id="syncStatus">Local only</span>
+  <button class="btn secondary small" onclick="signOut()">Sign out</button>
+</div>
+
 <div class="app">
 <aside class="side">
   <div class="brand">my<span>money</span></div>
@@ -45,12 +86,15 @@ button,input,select{font:inherit} button{cursor:pointer}
     <button onclick="show('goals',this)"><span class="icon">◎</span> Savings Goals</button>
     <button onclick="show('transactions',this)"><span class="icon">↕</span> Transactions</button>
     <button onclick="show('investments',this)"><span class="icon">↗</span> Investments</button>
+    <button onclick="show('paycheck',this)"><span class="icon">💸</span> Paycheck</button>
     <button onclick="show('networth',this)"><span class="icon">◉</span> Net Worth</button>
     <button onclick="show('taxes',this)"><span class="icon">▤</span> DIY Taxes</button>
+    <button onclick="show('backup',this)"><span class="icon">⇅</span> Backup</button>
   </div>
   <div class="side-bottom"><div class="mini-tip">💡 <b>Quick tip</b><br>Give every dollar a job, then let your goals do the heavy lifting.</div></div>
 </aside>
 
+<div id="modal" class="modal" onclick="if(event.target===this) closeModal()"><div class="modalbox"><h2 id="modalTitle">Add</h2><div id="modalBody"></div><div class="modalactions"><button class="btn secondary" onclick="closeModal()">Cancel</button><button class="btn" id="modalSave">Save</button></div></div></div>
 <main class="main">
 <section id="dashboard" class="section active">
   <div class="top"><div class="title"><h1>Good afternoon 👋</h1><p>Here's your money at a glance.</p></div><div class="date">August 2026</div></div>
@@ -93,6 +137,29 @@ button,input,select{font:inherit} button{cursor:pointer}
 </section>
 
 
+
+<section id="paycheck" class="section">
+  <div class="top"><div class="title"><h1>Paycheck Allocator</h1><p>Enter a paycheck once and let MyMoney split it into your accounts automatically.</p></div><button class="btn" onclick="allocatePaycheck()">Allocate this pay</button></div>
+  <div class="grid">
+    <div class="card metric"><div class="label">Last paycheck</div><div class="big" id="payLast">$0</div><div class="delta">The amount waiting to be allocated</div></div>
+    <div class="card metric"><div class="label">Planned allocation</div><div class="big" id="payPlanned">$0</div><div class="delta" id="payPlannedNote">Based on your rules</div></div>
+    <div class="card metric"><div class="label">Left unallocated</div><div class="big" id="payLeft">$0</div><div class="delta">Can remain in your deposit account</div></div>
+    <div class="card metric"><div class="label">Allocation rules</div><div class="big" id="payRuleCount">0</div><div class="delta">Custom spaces/accounts</div></div>
+  </div>
+  <div class="panel">
+    <div class="rowhead"><div><h2>1. Enter your paycheck</h2><div class="sub">Use your take-home pay if this is the amount that actually reaches your bank.</div></div><button class="btn secondary small" onclick="editPaycheck()">Edit pay</button></div>
+    <div id="paySetup"></div><p class="note" style="margin-top:14px"><b>How it works:</b> choose a deposit account if your paycheck lands there. MyMoney adds the paycheck to that account, moves the rule amounts into your other accounts, and leaves any remainder in the deposit account. If you don't choose a deposit account, your rules must allocate the entire paycheck.</p>
+  </div>
+  <div class="panel">
+    <div class="rowhead"><div><h2>2. Tell MyMoney how to split it</h2><div class="sub">Choose a percentage of each paycheck or a monthly amount for each account.</div></div><button class="btn small" onclick="addAllocationRule()">+ Add rule</button></div>
+    <div id="allocationRules"></div>
+  </div>
+  <div class="panel">
+    <div class="rowhead"><div><h2>3. Allocation history</h2><div class="sub">Every allocation updates your actual account balances and the rest of the app.</div></div></div>
+    <div id="allocationHistory"></div>
+  </div>
+</section>
+
 <section id="networth" class="section">
   <div class="top"><div class="title"><h1>Net Worth</h1><p>Track every account, sub-savings bucket, and debt in one place.</p></div><button class="btn" onclick="addNetAccount()">+ Add account</button></div>
   <div class="grid">
@@ -104,6 +171,33 @@ button,input,select{font:inherit} button{cursor:pointer}
   <div class="two">
     <div class="panel"><div class="rowhead"><div><h2>Accounts & savings buckets</h2><div class="sub">Make as many sub-accounts as you want.</div></div></div><div id="netAccountTable"></div></div>
     <div class="panel"><div class="rowhead"><div><h2>Net worth history</h2><div class="sub">Record a snapshot each month to see your progress.</div></div><button class="btn small" onclick="addNetHistory()">+ Record</button></div><div id="netHistory"></div></div>
+  </div>
+</section>
+
+
+<section id="backup" class="section">
+  <div class="top"><div class="title"><h1>Backup & Restore</h1><p>Keep a copy of your financial information so it never gets trapped on one device.</p></div></div>
+  <div class="two">
+    <div class="panel">
+      <h2>Export your data</h2>
+      <div class="sub">Download a private backup file containing your budgets, goals, accounts, transactions, investments, and tax organizer information.</div>
+      <button class="btn" onclick="exportData()">↓ Download backup</button>
+      <p class="note" style="margin-top:14px">Your backup is a JSON file. Keep it somewhere safe, such as iCloud Drive, Google Drive, or another trusted storage location.</p>
+    </div>
+    <div class="panel">
+      <h2>Restore a backup</h2>
+      <div class="sub">Choose a MyMoney backup file to restore your information on this device.</div>
+      <input id="restoreFile" type="file" accept=".json,application/json" style="display:none" onchange="importData(event)">
+      <button class="btn secondary" onclick="document.getElementById('restoreFile').click()">↑ Choose backup file</button>
+      <p class="note" style="margin-top:14px">Restoring replaces the current information in this browser with the backup you select. Export your current data first if you want a safety copy.</p>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Automatic local backup</h2>
+    <div class="sub">MyMoney already saves changes locally in your browser. This protects against accidental refreshes, but a downloaded backup is safer if you clear browser data, switch devices, or reinstall your browser.</div>
+    <div style="background:#f1f7f3;border-radius:14px;padding:15px;font-size:13px;line-height:1.55">
+      <b>Best practice:</b> download a backup whenever you make a major change, and keep a current copy in your personal cloud storage.
+    </div>
   </div>
 </section>
 
@@ -127,6 +221,7 @@ button,input,select{font:inherit} button{cursor:pointer}
 </main>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const KEY='mymoney-v1';
 let data=JSON.parse(localStorage.getItem(KEY)||'null')||{
@@ -162,19 +257,59 @@ let data=JSON.parse(localStorage.getItem(KEY)||'null')||{
   {name:'Credit Card',type:'debt',category:'Debt',balance:0}
  ],
  netHistory:[],
+ payAllocator:{lastPay:0,date:'',frequency:'biweekly',customPeriods:26,sourceAccountId:'',rules:[],history:[]},
  tax:{income:0,withheld:0,deduct:0}
 };
 function normalizeData(){
+ if(Array.isArray(data.transactions)) data.transactions.forEach(t=>{if(!t.date)t.date=''});
  if(!Array.isArray(data.netAccounts)) data.netAccounts=[];
  if(!Array.isArray(data.netHistory)) data.netHistory=[];
+ if(!Array.isArray(data.budget)) data.budget=[];
+ if(!Array.isArray(data.goals)) data.goals=[];
+ if(!Array.isArray(data.transactions)) data.transactions=[];
+ data.transactions.forEach(t=>{if(!t.date)t.date=new Date().toISOString().slice(0,10)});
+ if(!Array.isArray(data.investments)) data.investments=[];
+ if(!data.payAllocator || typeof data.payAllocator!=='object') data.payAllocator={lastPay:0,date:'',frequency:'biweekly',customPeriods:26,sourceAccountId:'',rules:[],history:[]};
+ if(!Array.isArray(data.payAllocator.rules)) data.payAllocator.rules=[];
+ if(!Array.isArray(data.payAllocator.history)) data.payAllocator.history=[];
+ if(typeof data.payAllocator.lastPay!=='number') data.payAllocator.lastPay=0;
+ if(!data.tax || typeof data.tax!=='object') data.tax={income:0,withheld:0,deduct:0};
+ if(typeof data.income!=='number') data.income=0;
+ data.netAccounts.forEach((a,i)=>{if(!a.id)a.id='acct_'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,7)});
 }
 normalizeData();
-function save(){localStorage.setItem(KEY,JSON.stringify(data));render()}
+syncGoalsToAccounts();
+let cloudSaveTimer=null;
+function save(){
+  localStorage.setItem(KEY,JSON.stringify(data));
+  render();
+  if(window.mymoneyUser){
+    clearTimeout(cloudSaveTimer);
+    cloudSaveTimer=setTimeout(()=>cloudSave(),350);
+  }
+}
+async function cloudSave(){
+  if(!window.mymoneyUser || !window.supabaseClient) return;
+  setSync('Saving…');
+  const {error}=await window.supabaseClient.from('mymoney_data').upsert(
+    {user_id:window.mymoneyUser.id,data:data,updated_at:new Date().toISOString()},
+    {onConflict:'user_id'}
+  );
+  setSync(error ? 'Sync error' : 'Saved to cloud');
+}
+function setSync(text){
+  const el=document.getElementById('syncStatus');
+  if(el) el.textContent=text;
+}
 function money(n){return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n||0)}
 function show(id,btn){document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));btn.classList.add('active');render()}
-function showByName(id){let b=[...document.querySelectorAll('.nav button')].find(x=>x.textContent.toLowerCase().includes(id.replace('transactions','transactions').split(' ')[0]));show(id,b||document.querySelector('.nav button'))}
-function spent(){return data.transactions.filter(x=>x.type==='expense').reduce((a,x)=>a+Number(x.amount),0)}
-function income(){return data.transactions.filter(x=>x.type==='income').reduce((a,x)=>a+Number(x.amount),0) || data.income}
+function showByName(id){let b=[...document.querySelectorAll('.nav button')].find(x=>(x.getAttribute('onclick')||'').includes("show('"+id+"'"));if(!b)b=[...document.querySelectorAll('.nav button')].find(x=>x.textContent.toLowerCase().includes(id));show(id,b||document.querySelector('.nav button'))}
+function currentMonthKey(d=new Date()){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}
+function transactionMonth(t){if(!t.date)return null;const m=String(t.date).match(/^(\d{4})-(\d{1,2})/);if(m)return `${m[1]}-${String(m[2]).padStart(2,'0')}`;const parsed=new Date(t.date);return isNaN(parsed)?null:currentMonthKey(parsed)}
+function monthSpent(category){const key=currentMonthKey();return data.transactions.filter(x=>x.type==='expense'&&transactionMonth(x)===key&&(!category||String(x.cat).toLowerCase()===String(category).toLowerCase())).reduce((a,x)=>a+Number(x.amount),0)}
+function monthIncome(){const key=currentMonthKey();return data.transactions.filter(x=>x.type==='income'&&transactionMonth(x)===key).reduce((a,x)=>a+Number(x.amount),0)}
+function spent(){return monthSpent()}
+function income(){const actual=monthIncome();return actual>0?actual:data.income}
 function invTotal(){return data.investments.reduce((a,x)=>a+Number(x.balance||0),0)}
 function taxCalc(){let inc=Number(data.tax.income||0), w=Number(data.tax.withheld||0), d=Number(data.tax.deduct||0);let taxable=Math.max(0,inc-d);let tax=0; // simplified planning estimate
   const brackets=[[12400,.10],[38100,.12],[64700,.22],[100525,.24],[191950,.32],[243725,.35],[Infinity,.37]];
@@ -186,12 +321,29 @@ function netAssets(){return data.netAccounts.filter(x=>x.type==='asset').reduce(
 function netDebts(){return data.netAccounts.filter(x=>x.type==='debt').reduce((a,x)=>a+Number(x.balance||0),0)}
 function netWorth(){return netAssets()-netDebts()}
 function netSavings(){return data.netAccounts.filter(x=>x.type==='asset' && x.category==='Savings').reduce((a,x)=>a+Number(x.balance||0),0)}
+
+function periodsPerYear(){const f=data.payAllocator.frequency;if(f==='weekly')return 52;if(f==='biweekly')return 26;if(f==='twice-monthly')return 24;if(f==='monthly')return 12;return Math.max(1,Number(data.payAllocator.customPeriods)||26)}
+function ruleAmount(rule,pay){if(rule.mode==='percent')return Math.max(0,pay*Number(rule.value||0)/100);return Math.max(0,Number(rule.value||0)*12/periodsPerYear())}
+function accountById(id){return data.netAccounts.find(a=>a.id===id)}
+function allocationTotal(){const pay=Number(data.payAllocator.lastPay||0);return data.payAllocator.rules.reduce((sum,r)=>sum+ruleAmount(r,pay),0)}
+function syncGoalsToAccounts(){data.goals.forEach(g=>{if(g.accountId){const a=accountById(g.accountId);if(a)g.current=Number(a.balance||0)}})}
+function allocationSummary(){const pay=Number(data.payAllocator.lastPay||0),total=allocationTotal();return {pay,total,left:Math.max(0,pay-total)}}
 function render(){
  document.getElementById('dashIncome').textContent=money(income());
  document.getElementById('dashSpent').textContent=money(spent());
  document.getElementById('dashSave').textContent=money(income()-spent());
  document.getElementById('dashNet').textContent=money(netWorth());
  document.getElementById('dashInvest').textContent=money(invTotal());
+ const ps=allocationSummary();
+ document.getElementById('payLast').textContent=money(ps.pay);
+ document.getElementById('payPlanned').textContent=money(ps.total);
+ document.getElementById('payLeft').textContent=money(ps.left);
+ document.getElementById('payRuleCount').textContent=data.payAllocator.rules.length;
+ document.getElementById('payPlannedNote').textContent=ps.total>ps.pay?'Rules exceed this paycheck':'Based on your allocation rules';
+ document.getElementById('paySetup').innerHTML=`<div class="formgrid"><div><div class="label">Paycheck date</div><div style="margin-top:7px;font-weight:700">${esc(data.payAllocator.date||'Not entered')}</div></div><div><div class="label">Pay frequency</div><div style="margin-top:7px;font-weight:700">${esc(data.payAllocator.frequency==='twice-monthly'?'Twice monthly':data.payAllocator.frequency.charAt(0).toUpperCase()+data.payAllocator.frequency.slice(1))}</div></div><div><div class="label">Deposit account</div><div style="margin-top:7px;font-weight:700">${esc((accountById(data.payAllocator.sourceAccountId)||{}).name||'No deposit account')}</div></div></div>`;
+ document.getElementById('allocationRules').innerHTML=data.payAllocator.rules.length?`<table class="table"><thead><tr><th>Account</th><th>Rule</th><th>This pay</th><th></th></tr></thead><tbody>${data.payAllocator.rules.map((r,i)=>{const a=accountById(r.accountId),amt=ruleAmount(r,ps.pay);return `<tr><td><b>${esc(a?a.name:'Missing account')}</b></td><td>${r.mode==='percent'?esc(r.value)+'% of each pay':money(r.value)+'/month'}</td><td>${money(amt)}</td><td class="actions"><button class="btn secondary small" onclick="editAllocationRule(${i})">Edit</button><button class="delete" onclick="delAllocationRule(${i})">Delete</button></td></tr>`}).join('')}</tbody></table>`:'<div class="empty">No allocation rules yet. Add one for each account or savings space you want funded automatically.</div>';
+ document.getElementById('allocationHistory').innerHTML=data.payAllocator.history.length?data.payAllocator.history.slice().reverse().map((h,ri)=>`<div class="transaction"><div><div class="tname">${esc(h.date||'Paycheck')}</div><div class="tcat">${money(h.pay)} allocated • ${h.rules} rules</div></div><div class="amount income">${money(h.total)}</div></div>`).join(''):'<div class="empty">No allocations yet. Your first paycheck will appear here.</div>';
+
  document.getElementById('nwAssets').textContent=money(netAssets());
  document.getElementById('nwDebts').textContent=money(netDebts());
  document.getElementById('nwTotal').textContent=money(netWorth());
@@ -201,52 +353,128 @@ function render(){
 
  document.getElementById('dashTax').textContent=money(taxCalc());
  document.getElementById('budgetIncome').textContent=money(data.income);
- const totalBudget=data.budget.reduce((a,x)=>a+Number(x.budget),0), totalSpent=data.budget.reduce((a,x)=>a+Number(x.spent),0);
+ const totalBudget=data.budget.reduce((a,x)=>a+Number(x.budget),0), totalSpent=data.budget.reduce((a,x)=>a+monthSpent(x.name),0);
  document.getElementById('budgetSummary').textContent=money(totalSpent)+' / '+money(totalBudget);
- document.getElementById('dashBudget').innerHTML=data.budget.map(x=>{let p=x.budget?Math.min(100,x.spent/x.budget*100):0;return `<div class="barrow"><div class="barhead"><b>${esc(x.name)}</b><span>${money(x.spent)} / ${money(x.budget)}</span></div><div class="bar"><div class="fill" style="width:${p}%"></div></div></div>`}).join('');
+ document.getElementById('dashBudget').innerHTML=data.budget.map(x=>{let ms=monthSpent(x.name),p=x.budget?Math.min(100,ms/x.budget*100):0;return `<div class="barrow"><div class="barhead"><b>${esc(x.name)}</b><span>${money(ms)} / ${money(x.budget)}</span></div><div class="bar"><div class="fill" style="width:${p}%"></div></div></div>`}).join('');
  document.getElementById('dashGoals').innerHTML=data.goals.length?data.goals.slice(0,4).map(goalHTML).join(''):'<div class="empty">No goals yet. Add one and give future-you something to cheer for.</div>';
  document.getElementById('dashTransactions').innerHTML=data.transactions.slice(-5).reverse().map(t=>transHTML(t)).join('');
- document.getElementById('budgetTable').innerHTML=`<table class="table"><thead><tr><th>Category</th><th>Budget</th><th>Spent</th><th>Remaining</th><th></th></tr></thead><tbody>${data.budget.map((x,i)=>`<tr><td><b>${esc(x.name)}</b></td><td>${money(x.budget)}</td><td>${money(x.spent)}</td><td>${money(Number(x.budget)-Number(x.spent))}</td><td class="actions"><button class="btn secondary small" onclick="editBudget(${i})">Edit</button><button class="delete" onclick="delBudget(${i})">Delete</button></td></tr>`).join('')}</tbody></table>`;
+ document.getElementById('budgetTable').innerHTML=`<table class="table"><thead><tr><th>Category</th><th>Budget</th><th>Spent</th><th>Remaining</th><th></th></tr></thead><tbody>${data.budget.map((x,i)=>`<tr><td><b>${esc(x.name)}</b></td><td>${money(x.budget)}</td><td>${money(monthSpent(x.name))}</td><td>${money(Number(x.budget)-monthSpent(x.name))}</td><td class="actions"><button class="btn secondary small" onclick="editBudget(${i})">Edit</button><button class="delete" onclick="delBudget(${i})">Delete</button></td></tr>`).join('')}</tbody></table>`;
  document.getElementById('goalCards').innerHTML=data.goals.map((g,i)=>`<div class="card"><div style="font-size:27px">${g.icon||'◎'}</div><h2 style="margin-top:10px">${esc(g.name)}</h2><div class="sub">${money(g.current)} of ${money(g.target)}</div><div class="bar"><div class="fill" style="width:${Math.min(100,g.current/g.target*100)}%"></div></div><div class="goalmeta"><span>${Math.round(g.current/g.target*100)}% complete</span><span>${money(g.monthly)}/mo</span></div><div style="display:flex;gap:8px;margin-top:15px"><button class="btn secondary small" onclick="editGoal(${i})">Edit</button><button class="delete" onclick="delGoal(${i})">Delete</button></div></div>`).join('');
- document.getElementById('transactionTable').innerHTML=`<table class="table"><thead><tr><th>Description</th><th>Category</th><th>Type</th><th>Amount</th><th></th></tr></thead><tbody>${data.transactions.slice().reverse().map((t,ri)=>{let i=data.transactions.length-1-ri;return `<tr><td><b>${esc(t.name)}</b></td><td>${esc(t.cat)}</td><td>${t.type}</td><td class="${t.type==='income'?'income':''}">${t.type==='income'?'+':'-'}${money(t.amount)}</td><td class="actions"><button class="delete" onclick="delTrans(${i})">Delete</button></td></tr>`}).join('')}</tbody></table>`;
+ document.getElementById('transactionTable').innerHTML=`<table class="table"><thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Type</th><th>Amount</th><th></th></tr></thead><tbody>${data.transactions.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map((t)=>{let i=data.transactions.indexOf(t);return `<tr><td>${esc(t.date||'')}</td><td><b>${esc(t.name)}</b></td><td>${esc(t.cat)}</td><td>${t.type}</td><td class="${t.type==='income'?'income':''}">${t.type==='income'?'+':'-'}${money(t.amount)}</td><td class="actions"><button class="btn secondary small" onclick="editTransaction(${i})">Edit</button><button class="delete" onclick="delTrans(${i})">Delete</button></td></tr>`}).join('')}</tbody></table>`;
  document.getElementById('investmentTable').innerHTML=`<table class="table"><thead><tr><th>Account</th><th>Balance</th><th>Monthly contribution</th><th></th></tr></thead><tbody>${data.investments.map((x,i)=>`<tr><td><b>${esc(x.name)}</b></td><td>${money(x.balance)}</td><td>${money(x.contribution)}</td><td class="actions"><button class="btn secondary small" onclick="editInvestment(${i})">Edit</button><button class="delete" onclick="delInvestment(${i})">Delete</button></td></tr>`).join('')}</tbody></table>`;
  document.getElementById('taxIncome').value=data.tax.income;document.getElementById('taxWithheld').value=data.tax.withheld;document.getElementById('taxDeduct').value=data.tax.deduct;calcTax();
  document.getElementById('taxChecklist').innerHTML=['W-2s / wage statements','1099s and other income forms','Interest / dividend statements','Education documents','Charitable donation records','Health insurance / medical records if applicable','Prior-year tax return','Bank account and routing information'].map(x=>`<label style="display:block;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px"><input type="checkbox" style="margin-right:9px"> ${x}</label>`).join('');
 }
 function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function goalHTML(g){let p=Math.min(100,g.current/g.target*100);return `<div class="goal"><div class="goaltop"><span>${g.icon||'◎'} ${esc(g.name)}</span><span>${money(g.current)}</span></div><div class="bar" style="margin-top:8px"><div class="fill" style="width:${p}%"></div></div><div class="goalmeta"><span>${Math.round(p)}% complete</span><span>Target ${money(g.target)}</span></div></div>`}
-function transHTML(t){return `<div class="transaction"><div class="tleft"><div class="avatar">${t.type==='income'?'↑':'$'}</div><div><div class="tname">${esc(t.name)}</div><div class="tcat">${esc(t.cat)}</div></div></div><div class="amount ${t.type==='income'?'income':''}">${t.type==='income'?'+':'-'}${money(t.amount)}</div></div>`}
-function addBudget(){let n=prompt('Category name:');if(!n)return;let b=Number(prompt('Monthly budget:', '100'));if(isNaN(b))return;data.budget.push({name:n,budget:b,spent:0});save()}
-function editBudget(i){let x=data.budget[i],n=prompt('Category name:',x.name),b=Number(prompt('Monthly budget:',x.budget)),s=Number(prompt('Amount spent so far:',x.spent));if(n&&[b,s].every(Number.isFinite)){Object.assign(x,{name:n,budget:b,spent:s});save()}}
-function delBudget(i){if(confirm('Delete this budget category?')){data.budget.splice(i,1);save()}}
-function editIncome(){let n=Number(prompt('Planned monthly income:',data.income));if(Number.isFinite(n)){data.income=n;save()}}
-function addGoal(){let n=prompt('Goal name:');if(!n)return;let target=Number(prompt('Target amount:','5000')),cur=Number(prompt('Current amount:','0')),monthly=Number(prompt('Monthly contribution:','200'));if([target,cur,monthly].every(Number.isFinite)){data.goals.push({name:n,current:cur,target,monthly,icon:'🎯'});save()}}
-function editGoal(i){let g=data.goals[i],n=prompt('Goal name:',g.name),cur=Number(prompt('Current amount:',g.current)),target=Number(prompt('Target amount:',g.target)),m=Number(prompt('Monthly contribution:',g.monthly));if(n&&[cur,target,m].every(Number.isFinite)){Object.assign(g,{name:n,current:cur,target,monthly:m});save()}}
-function delGoal(i){if(confirm('Delete this goal?')){data.goals.splice(i,1);save()}}
-function addTransaction(){let n=prompt('Description:');if(!n)return;let cat=prompt('Category:','Other'),amount=Number(prompt('Amount:','25')),type=prompt('Type: enter income or expense','expense').toLowerCase();if(!['income','expense'].includes(type)||!Number.isFinite(amount))return;data.transactions.push({name:n,cat,amount,type});if(type==='expense'){let b=data.budget.find(x=>x.name.toLowerCase()===cat.toLowerCase());if(b)b.spent+=amount}save()}
-function delTrans(i){if(confirm('Delete this transaction?')){let t=data.transactions[i];if(t.type==='expense'){let b=data.budget.find(x=>x.name.toLowerCase()===t.cat.toLowerCase());if(b)b.spent=Math.max(0,b.spent-t.amount)}data.transactions.splice(i,1);save()}}
-function addInvestment(){let n=prompt('Account name:');if(!n)return;let b=Number(prompt('Current balance:','0')),c=Number(prompt('Monthly contribution:','0'));if([b,c].every(Number.isFinite)){data.investments.push({name:n,balance:b,contribution:c});save()}}
-function editInvestment(i){let x=data.investments[i],n=prompt('Account name:',x.name),b=Number(prompt('Current balance:',x.balance)),c=Number(prompt('Monthly contribution:',x.contribution));if(n&&[b,c].every(Number.isFinite)){Object.assign(x,{name:n,balance:b,contribution:c});save()}}
-function delInvestment(i){if(confirm('Delete this account?')){data.investments.splice(i,1);save()}}
+function transHTML(t){return `<div class="transaction"><div class="tleft"><div class="avatar">${t.type==='income'?'↑':'$'}</div><div><div class="tname">${esc(t.name)}</div><div class="tcat">${esc(t.cat)}${t.date?' • '+esc(t.date):''}</div></div></div><div class="amount ${t.type==='income'?'income':''}">${t.type==='income'?'+':'-'}${money(t.amount)}</div></div>`}
+function openForm(title,fields,onSave){const modal=document.getElementById('modal'),body=document.getElementById('modalBody');document.getElementById('modalTitle').textContent=title;body.innerHTML='<div class="modalform">'+fields.map(f=>`<div class="field"><label>${esc(f.label)}</label>${f.type==='select'?`<select id="mf_${f.key}">${f.options.map(o=>{const acct=accountById(o);const label=o==='__NONE__'?'None':(acct?acct.name:o);return `<option value="${esc(o)}" ${String(o)===String(f.value)?'selected':''}>${esc(label)}</option>`}).join('')}</select>`:`<input id="mf_${f.key}" type="${f.type||'text'}" value="${esc(f.value??'')}" placeholder="${esc(f.placeholder||'')}">`}</div>`).join('')+'<div class="modalmsg" id="modalMsg"></div></div>';modal.classList.add('open');document.getElementById('modalSave').onclick=()=>{const vals={};fields.forEach(f=>vals[f.key]=document.getElementById('mf_'+f.key).value);const ok=onSave(vals);if(ok!==false)closeModal()};setTimeout(()=>body.querySelector('input,select')?.focus(),50)}
+function closeModal(){document.getElementById('modal').classList.remove('open');document.getElementById('modalSave').onclick=null;document.getElementById('modalSave').textContent='Save'}
+function askDelete(label,action){const modal=document.getElementById('modal'),body=document.getElementById('modalBody');document.getElementById('modalTitle').textContent='Delete '+label+'?';body.innerHTML='<div style="font-size:13px;color:var(--muted);line-height:1.5">This cannot be undone from the website. If you have a backup, you can restore it later.</div>';modal.classList.add('open');const btn=document.getElementById('modalSave');btn.textContent='Delete';btn.className='delete';btn.onclick=()=>{action();closeModal()}}
+function num(v){return Number(v)}
+function addBudget(){openForm('Add budget category',[{key:'name',label:'Category name',placeholder:'Food'},{key:'budget',label:'Monthly budget',type:'number',value:'100'},{key:'spent',label:'Already spent',type:'number',value:'0'}],v=>{let b=num(v.budget),sp=num(v.spent);if(!v.name.trim()||!Number.isFinite(b)||!Number.isFinite(sp))return false;data.budget.push({name:v.name.trim(),budget:b,spent:sp});save()})}
+function editBudget(i){let x=data.budget[i];openForm('Edit budget category',[{key:'name',label:'Category name',value:x.name},{key:'budget',label:'Monthly budget',type:'number',value:x.budget},{key:'spent',label:'Already spent',type:'number',value:x.spent}],v=>{let b=num(v.budget),sp=num(v.spent);if(!v.name.trim()||!Number.isFinite(b)||!Number.isFinite(sp))return false;Object.assign(x,{name:v.name.trim(),budget:b,spent:sp});save()})}
+function delBudget(i){askDelete('budget category',()=>{data.budget.splice(i,1);save()})}
+function editIncome(){openForm('Edit monthly income',[{key:'income',label:'Planned monthly income',type:'number',value:data.income}],v=>{let n=num(v.income);if(!Number.isFinite(n))return false;data.income=n;save()})}
+function goalAccountFields(selected){return [{key:'accountId',label:'Link to a net-worth account (optional)',type:'select',options:['','__NONE__',...data.netAccounts.map(a=>a.id)],value:selected||'__NONE__',displayOptions:true}]} 
+function addGoal(){const accountOpts=data.netAccounts.map(a=>a.id);openForm('New savings goal',[{key:'name',label:'Goal name',placeholder:'Emergency fund'},{key:'target',label:'Target amount',type:'number',value:'5000'},{key:'current',label:'Current amount',type:'number',value:'0'},{key:'monthly',label:'Monthly contribution',type:'number',value:'200'},{key:'icon',label:'Icon (optional)',value:'🎯'},{key:'accountId',label:'Linked account (optional)',type:'select',options:['__NONE__',...accountOpts],value:'__NONE__'}],v=>{let a=['target','current','monthly'].map(k=>num(v[k]));if(!v.name.trim()||a.some(x=>!Number.isFinite(x)))return false;let linked=accountById(v.accountId);data.goals.push({name:v.name.trim(),current:linked?Number(linked.balance||0):a[1],target:a[0],monthly:a[2],icon:v.icon||'🎯',accountId:linked?linked.id:''});save()})}
+function editGoal(i){let g=data.goals[i];openForm('Edit savings goal',[{key:'name',label:'Goal name',value:g.name},{key:'target',label:'Target amount',type:'number',value:g.target},{key:'current',label:'Current amount',type:'number',value:g.current},{key:'monthly',label:'Monthly contribution',type:'number',value:g.monthly},{key:'icon',label:'Icon',value:g.icon||'🎯'},{key:'accountId',label:'Linked account (optional)',type:'select',options:['__NONE__',...data.netAccounts.map(a=>a.id)],value:g.accountId||'__NONE__'}],v=>{let a=['target','current','monthly'].map(k=>num(v[k]));if(!v.name.trim()||a.some(x=>!Number.isFinite(x)))return false;let linked=accountById(v.accountId);Object.assign(g,{name:v.name.trim(),current:linked?Number(linked.balance||0):a[1],target:a[0],monthly:a[2],icon:v.icon||'🎯',accountId:linked?linked.id:''});save()})}
+function delGoal(i){askDelete('savings goal',()=>{data.goals.splice(i,1);save()})}
+function normalizeTransactionDate(v){let s=String(v||'').trim();if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;let m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);if(m)return `${m[3]}-${String(m[1]).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}`;return s}
+function addTransaction(){openForm('Add transaction',[{key:'date',label:'Transaction date',type:'date',value:new Date().toISOString().slice(0,10)},{key:'name',label:'Description',placeholder:'Groceries'},{key:'cat',label:'Category',placeholder:'Food'},{key:'amount',label:'Amount',type:'number',value:'25'},{key:'type',label:'Type',type:'select',options:['expense','income'],value:'expense'}],v=>{let a=num(v.amount),d=normalizeTransactionDate(v.date);if(!d||!v.name.trim()||!Number.isFinite(a))return false;data.transactions.push({date:d,name:v.name.trim(),cat:v.cat.trim()||'Other',amount:a,type:v.type});save()})}
+function editTransaction(i){let t=data.transactions[i];openForm('Edit transaction',[{key:'date',label:'Transaction date',type:'date',value:/^\d{4}-\d{2}-\d{2}$/.test(t.date||'')?t.date:new Date().toISOString().slice(0,10)},{key:'name',label:'Description',value:t.name},{key:'cat',label:'Category',value:t.cat},{key:'amount',label:'Amount',type:'number',value:t.amount},{key:'type',label:'Type',type:'select',options:['expense','income'],value:t.type}],v=>{let a=num(v.amount),d=normalizeTransactionDate(v.date);if(!d||!v.name.trim()||!Number.isFinite(a))return false;Object.assign(t,{date:d,name:v.name.trim(),cat:v.cat.trim()||'Other',amount:a,type:v.type});save()})}
+function delTrans(i){askDelete('transaction',()=>{data.transactions.splice(i,1);save()})}
+function addInvestment(){openForm('Add investment account',[{key:'name',label:'Account name',placeholder:'Roth IRA'},{key:'balance',label:'Current balance',type:'number',value:'0'},{key:'contribution',label:'Monthly contribution',type:'number',value:'0'}],v=>{let b=num(v.balance),c=num(v.contribution);if(!v.name.trim()||!Number.isFinite(b)||!Number.isFinite(c))return false;data.investments.push({name:v.name.trim(),balance:b,contribution:c});save()})}
+function editInvestment(i){let x=data.investments[i];openForm('Edit investment account',[{key:'name',label:'Account name',value:x.name},{key:'balance',label:'Current balance',type:'number',value:x.balance},{key:'contribution',label:'Monthly contribution',type:'number',value:x.contribution}],v=>{let b=num(v.balance),c=num(v.contribution);if(!v.name.trim()||!Number.isFinite(b)||!Number.isFinite(c))return false;Object.assign(x,{name:v.name.trim(),balance:b,contribution:c});save()})}
+function delInvestment(i){askDelete('investment account',()=>{data.investments.splice(i,1);save()})}
+function addNetAccount(){openForm('Add net worth account',[{key:'name',label:'Account or savings bucket',placeholder:'Emergency Fund'},{key:'type',label:'Type',type:'select',options:['asset','debt'],value:'asset'},{key:'category',label:'Category',placeholder:'Savings',value:'Savings'},{key:'balance',label:'Current balance',type:'number',value:'0'}],v=>{let b=num(v.balance);if(!v.name.trim()||!Number.isFinite(b))return false;data.netAccounts.push({name:v.name.trim(),type:v.type,category:v.category.trim()||'Other',balance:b});save()})}
+function editNetAccount(i){let x=data.netAccounts[i];openForm('Edit net worth account',[{key:'name',label:'Account name',value:x.name},{key:'type',label:'Type',type:'select',options:['asset','debt'],value:x.type},{key:'category',label:'Category',value:x.category},{key:'balance',label:'Balance',type:'number',value:x.balance}],v=>{let b=num(v.balance);if(!v.name.trim()||!Number.isFinite(b))return false;Object.assign(x,{name:v.name.trim(),type:v.type,category:v.category.trim()||'Other',balance:b});save()})}
+function delNetAccount(i){askDelete('net worth account',()=>{data.netAccounts.splice(i,1);save()})}
+function addNetHistory(){openForm('Record net worth snapshot',[{key:'date',label:'Month / date',value:new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'})},{key:'amount',label:'Net worth',type:'number',value:netWorth()}],v=>{let a=num(v.amount);if(!v.date.trim()||!Number.isFinite(a))return false;data.netHistory.push({date:v.date.trim(),amount:a});save()})}
+function delNetHistory(i){askDelete('net worth snapshot',()=>{data.netHistory.splice(i,1);save()})}
 
-function addNetAccount(){
- let n=prompt('Account or savings bucket name:'); if(!n)return;
- let type=prompt('Type: enter asset or debt','asset').toLowerCase(); if(!['asset','debt'].includes(type))return;
- let cat=prompt('Category (Savings, Checking, Investment, Debt, etc.):',type==='debt'?'Debt':'Savings')||'Other';
- let b=Number(prompt('Current balance:','0')); if(!Number.isFinite(b))return;
- data.netAccounts.push({name:n,type,category:cat,balance:b}); save();
+function editPaycheck(){openForm('Set your paycheck',[{key:'amount',label:'Take-home paycheck amount',type:'number',value:data.payAllocator.lastPay},{key:'date',label:'Paycheck date',type:'text',value:data.payAllocator.date||new Date().toLocaleDateString('en-US')},{key:'frequency',label:'How often are you paid?',type:'select',options:['weekly','biweekly','twice-monthly','monthly','custom'],value:data.payAllocator.frequency},{key:'customPeriods',label:'Paychecks per year if custom',type:'number',value:data.payAllocator.customPeriods||26},{key:'source',label:'Account the paycheck lands in (optional)',type:'select',options:['__NONE__',...data.netAccounts.filter(a=>a.type==='asset').map(a=>a.id)],value:data.payAllocator.sourceAccountId||'__NONE__'}],v=>{let a=num(v.amount),cp=Math.max(1,Math.round(num(v.customPeriods)));if(!Number.isFinite(a)||a<0)return false;data.payAllocator.lastPay=a;data.payAllocator.date=v.date.trim();data.payAllocator.frequency=v.frequency;data.payAllocator.customPeriods=cp;data.payAllocator.sourceAccountId=v.source==='__NONE__'?'':v.source;save()})}
+function addAllocationRule(){if(!data.netAccounts.length){alert('Add at least one Net Worth account first.');return}openForm('Add paycheck allocation',[{key:'accountId',label:'Account / savings space',type:'select',options:data.netAccounts.filter(a=>a.type==='asset').map(a=>a.id),value:(data.netAccounts.find(a=>a.type==='asset')||{}).id},{key:'mode',label:'How should it be calculated?',type:'select',options:['percent','monthly'],value:'percent'},{key:'value',label:'Percentage or monthly amount',type:'number',value:'10'}],v=>{let a=accountById(v.accountId),val=num(v.value);if(!a||!Number.isFinite(val)||val<0)return false;if(v.mode==='percent'&&val>100)return false;if(data.payAllocator.sourceAccountId===v.accountId)return false;data.payAllocator.rules.push({accountId:v.accountId,mode:v.mode,value:val});save()})}
+function editAllocationRule(i){let r=data.payAllocator.rules[i];openForm('Edit paycheck allocation',[{key:'accountId',label:'Account / savings space',type:'select',options:data.netAccounts.filter(a=>a.type==='asset').map(a=>a.id),value:r.accountId},{key:'mode',label:'How should it be calculated?',type:'select',options:['percent','monthly'],value:r.mode},{key:'value',label:'Percentage or monthly amount',type:'number',value:r.value}],v=>{let a=accountById(v.accountId),val=num(v.value);if(!a||!Number.isFinite(val)||val<0)return false;if(v.mode==='percent'&&val>100)return false;if(data.payAllocator.sourceAccountId===v.accountId)return false;Object.assign(r,{accountId:v.accountId,mode:v.mode,value:val});save()})}
+function delAllocationRule(i){askDelete('allocation rule',()=>{data.payAllocator.rules.splice(i,1);save()})}
+function allocatePaycheck(){const ps=allocationSummary();if(ps.pay<=0){openForm('Enter a paycheck first',[{key:'amount',label:'Take-home paycheck amount',type:'number',value:'0'},{key:'date',label:'Paycheck date',value:new Date().toLocaleDateString('en-US')}],v=>{let a=num(v.amount);if(!Number.isFinite(a)||a<=0)return false;data.payAllocator.lastPay=a;data.payAllocator.date=v.date;save()});return}if(ps.total>ps.pay){alert('Your allocation rules are larger than this paycheck. Reduce a rule before allocating.');return}const source=accountById(data.payAllocator.sourceAccountId);if(data.payAllocator.sourceAccountId&&!source){data.payAllocator.sourceAccountId='';}const allocations=[];data.payAllocator.rules.forEach(r=>{const a=accountById(r.accountId),amt=ruleAmount(r,ps.pay);if(a&&amt>0)allocations.push({account:a,amount:amt})});if(allocations.some(x=>source&&x.account.id===source.id)){alert('Your deposit account cannot also be an allocation target. Choose a different target.');return}const total=allocations.reduce((a,x)=>a+x.amount,0);if(!source && total<ps.pay){alert('You have money left over. Choose a deposit account so the remainder can stay there, or make your allocation rules add up to 100% of this paycheck.');return}if(source)source.balance=Number(source.balance||0)+ps.pay-total;allocations.forEach(x=>x.account.balance=Number(x.account.balance||0)+x.amount);data.transactions.push({date:data.payAllocator.date||new Date().toISOString().slice(0,10),name:'Paycheck allocation',cat:'Income',amount:ps.pay,type:'income'});syncGoalsToAccounts();data.payAllocator.history.push({date:data.payAllocator.date||new Date().toLocaleDateString('en-US'),pay:ps.pay,total,rules:allocations.length});data.income=income();save();alert('Paycheck allocated successfully. Your account balances and net worth have been updated.');}
+
+const SUPABASE_URL='https://dgoqhwnuwwtojhnocarw.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRnb3Fod251d3d0b2pobm9jYXJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY5NDYxMDgsImV4cCI6MjEwMjUyMjEwOH0.wmv8cxHfmuoGQ8xwr3HiaUhOE3IA_eDYHLwUHnV0uwI';
+window.supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+window.mymoneyUser=null;
+let authSignUpMode=false;
+
+function showAuthMessage(msg){
+  const el=document.getElementById('authMessage');
+  el.textContent=msg; el.style.display=msg?'block':'none';
 }
-function editNetAccount(i){
- let x=data.netAccounts[i],n=prompt('Account name:',x.name),type=prompt('Type: asset or debt:',x.type).toLowerCase(),cat=prompt('Category:',x.category),b=Number(prompt('Balance:',x.balance));
- if(n&&['asset','debt'].includes(type)&&Number.isFinite(b)){Object.assign(x,{name:n,type,category:cat,balance:b});save()}
+function toggleAuthMode(){
+  authSignUpMode=!authSignUpMode;
+  document.getElementById('authTitle').textContent=authSignUpMode?'Create your MyMoney account':'Sign in to MyMoney';
+  document.getElementById('authSubtitle').textContent=authSignUpMode?'Create a private account to sync your finances across devices.':'Your financial information is private to your account.';
+  document.querySelector('.auth-primary').textContent=authSignUpMode?'Create account':'Sign in';
+  document.getElementById('authToggle').textContent=authSignUpMode?'Already have an account? Sign in':'Create an account';
+  showAuthMessage('');
 }
-function delNetAccount(i){if(confirm('Delete this account?')){data.netAccounts.splice(i,1);save()}}
-function addNetHistory(){
- let date=prompt('Month / date:',new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'}));if(!date)return;
- let amount=Number(prompt('Net worth on that date:',netWorth()));if(!Number.isFinite(amount))return;
- data.netHistory.push({date,amount});save()
+async function submitAuth(){
+  const email=document.getElementById('authEmail').value.trim();
+  const password=document.getElementById('authPassword').value;
+  if(!email||password.length<6){showAuthMessage('Enter a valid email and a password with at least 6 characters.');return;}
+  showAuthMessage('');
+  const btn=document.querySelector('.auth-primary'); btn.disabled=true; btn.textContent='Working…';
+  let result;
+  if(authSignUpMode){
+    result=await window.supabaseClient.auth.signUp({email,password});
+    if(!result.error && !result.data.session){
+      showAuthMessage('Account created. Check your email to confirm your account, then sign in.');
+    }
+  }else{
+    result=await window.supabaseClient.auth.signInWithPassword({email,password});
+  }
+  btn.disabled=false; btn.textContent=authSignUpMode?'Create account':'Sign in';
+  if(result.error) showAuthMessage(result.error.message);
 }
-function delNetHistory(i){if(confirm('Delete this snapshot?')){data.netHistory.splice(i,1);save()}}
+async function resetPassword(){
+  const email=document.getElementById('authEmail').value.trim();
+  if(!email){showAuthMessage('Enter your email first, then tap Forgot password again.');return;}
+  const {error}=await window.supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname});
+  showAuthMessage(error?error.message:'Password reset email sent. Check your inbox.');
+}
+async function signOut(){ await window.supabaseClient.auth.signOut(); }
+async function loadCloudData(user){
+  setSync('Checking cloud…');
+  const {data:row,error}=await window.supabaseClient.from('mymoney_data').select('data,updated_at').eq('user_id',user.id).maybeSingle();
+  if(error){setSync('Sync error');return;}
+  const localRaw=localStorage.getItem(KEY);
+  const localData=localRaw?JSON.parse(localRaw):null;
+  if(row && row.data){
+    if(localData && JSON.stringify(localData)!==JSON.stringify(row.data)){
+      const useCloud=confirm("A saved MyMoney account was found. Use the cloud copy on this device? Tap Cancel to keep this device's copy and upload it to your account.");
+      if(!useCloud){ data=localData; normalizeData(); await cloudSave(); return; }
+    }
+    data=row.data; normalizeData(); localStorage.setItem(KEY,JSON.stringify(data)); render(); setSync('Synced');
+  }else{
+    normalizeData(); await cloudSave(); setSync('Saved to cloud');
+  }
+}
+function showSignedIn(user){
+  window.mymoneyUser=user;
+  document.getElementById('authOverlay').style.display='none';
+  document.getElementById('accountBar').style.display='flex';
+  document.getElementById('accountEmail').textContent=user.email||'Signed in';
+  loadCloudData(user);
+}
+function showSignedOut(){
+  window.mymoneyUser=null;
+  document.getElementById('authOverlay').style.display='flex';
+  document.getElementById('accountBar').style.display='none';
+  setSync('Sign in required');
+}
+window.supabaseClient.auth.onAuthStateChange((_event,session)=>{
+  if(session?.user) showSignedIn(session.user); else showSignedOut();
+});
+
 function calcTax(){data.tax.income=Number(document.getElementById('taxIncome').value||0);data.tax.withheld=Number(document.getElementById('taxWithheld').value||0);data.tax.deduct=Number(document.getElementById('taxDeduct').value||0);let r=taxCalc();document.getElementById('taxResult').textContent=money(r);document.getElementById('dashTax').textContent=money(r);document.getElementById('taxExplanation').textContent=r>=0?'Estimated refund based on this simplified model.':'Estimated amount owed based on this simplified model.';localStorage.setItem(KEY,JSON.stringify(data))}
 render();
 </script>
