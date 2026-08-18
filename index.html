@@ -660,7 +660,140 @@ function editPaycheck(){openForm('Set your paycheck',[{key:'amount',label:'Take-
 function addAllocationRule(){if(!data.netAccounts.length){alert('Add at least one Net Worth account first.');return}openForm('Add paycheck allocation',[{key:'accountId',label:'Account / savings space',type:'select',options:data.netAccounts.filter(a=>a.type==='asset').map(a=>a.id),value:(data.netAccounts.find(a=>a.type==='asset')||{}).id},{key:'mode',label:'How should it be calculated?',type:'select',options:['percent','monthly'],value:'percent'},{key:'value',label:'Percentage or monthly amount',type:'number',value:'10'}],v=>{let a=accountById(v.accountId),val=num(v.value);if(!a||!Number.isFinite(val)||val<0)return false;if(v.mode==='percent'&&val>100)return false;if(data.payAllocator.sourceAccountId===v.accountId)return false;data.payAllocator.rules.push({accountId:v.accountId,mode:v.mode,value:val});save()})}
 function editAllocationRule(i){let r=data.payAllocator.rules[i];openForm('Edit paycheck allocation',[{key:'accountId',label:'Account / savings space',type:'select',options:data.netAccounts.filter(a=>a.type==='asset').map(a=>a.id),value:r.accountId},{key:'mode',label:'How should it be calculated?',type:'select',options:['percent','monthly'],value:r.mode},{key:'value',label:'Percentage or monthly amount',type:'number',value:r.value}],v=>{let a=accountById(v.accountId),val=num(v.value);if(!a||!Number.isFinite(val)||val<0)return false;if(v.mode==='percent'&&val>100)return false;if(data.payAllocator.sourceAccountId===v.accountId)return false;Object.assign(r,{accountId:v.accountId,mode:v.mode,value:val});save()})}
 function delAllocationRule(i){askDelete('allocation rule',()=>{data.payAllocator.rules.splice(i,1);save()})}
-function allocatePaycheck(){const ps=allocationSummary();if(ps.pay<=0){openForm('Enter a paycheck first',[{key:'amount',label:'Take-home paycheck amount',type:'number',value:'0'},{key:'date',label:'Paycheck date',value:new Date().toLocaleDateString('en-US')}],v=>{let a=num(v.amount);if(!Number.isFinite(a)||a<=0)return false;data.payAllocator.lastPay=a;data.payAllocator.date=v.date;save()});return}if(ps.total>ps.pay){alert('Your allocation rules are larger than this paycheck. Reduce a rule before allocating.');return}const source=accountById(data.payAllocator.sourceAccountId);if(data.payAllocator.sourceAccountId&&!source){data.payAllocator.sourceAccountId='';}const allocations=[];data.payAllocator.rules.forEach(r=>{const a=accountById(r.accountId),amt=ruleAmount(r,ps.pay);if(a&&amt>0)allocations.push({account:a,amount:amt})});if(allocations.some(x=>source&&x.account.id===source.id)){alert('Your deposit account cannot also be an allocation target. Choose a different target.');return}const total=allocations.reduce((a,x)=>a+x.amount,0);if(!source && total<ps.pay){alert('You have money left over. Choose a deposit account so the remainder can stay there, or make your allocation rules add up to 100% of this paycheck.');return}if(source)source.balance=Number(source.balance||0)+ps.pay-total;allocations.forEach(x=>x.account.balance=Number(x.account.balance||0)+x.amount);data.transactions.push({date:data.payAllocator.date||new Date().toISOString().slice(0,10),name:'Paycheck allocation',cat:'Income',amount:ps.pay,type:'income'});syncGoalsToAccounts();data.payAllocator.history.push({date:data.payAllocator.date||new Date().toLocaleDateString('en-US'),pay:ps.pay,total,rules:allocations.length});data.income=income();save();alert('Paycheck allocated successfully. Your account balances and net worth have been updated.');}
+function allocatePaycheck(){
+  const ps=allocationSummary();
+
+  if(ps.pay<=0){
+    openForm(
+      'Enter a paycheck first',
+      [
+        {
+          key:'amount',
+          label:'Take-home paycheck amount',
+          type:'number',
+          value:'0'
+        },
+        {
+          key:'date',
+          label:'Paycheck date',
+          value:new Date().toISOString().slice(0,10)
+        }
+      ],
+      v=>{
+        let a=num(v.amount);
+
+        if(!Number.isFinite(a)||a<=0){
+          return false;
+        }
+
+        data.payAllocator.lastPay=a;
+        data.payAllocator.date=normalizeTransactionDate(v.date);
+
+        save();
+      }
+    );
+
+    return;
+  }
+
+  if(ps.total>ps.pay){
+    alert('Your allocation rules are larger than this paycheck. Reduce a rule before allocating.');
+    return;
+  }
+
+  const source=accountById(data.payAllocator.sourceAccountId);
+
+  if(data.payAllocator.sourceAccountId&&!source){
+    data.payAllocator.sourceAccountId='';
+  }
+
+  const allocations=[];
+
+  data.payAllocator.rules.forEach(r=>{
+    const account=accountById(r.accountId);
+    const amount=ruleAmount(r,ps.pay);
+
+    if(account&&amount>0){
+      allocations.push({
+        account:account,
+        amount:amount
+      });
+    }
+  });
+
+  if(
+    allocations.some(x=>
+      source &&
+      x.account.id===source.id
+    )
+  ){
+    alert('Your deposit account cannot also be an allocation target. Choose a different target.');
+    return;
+  }
+
+  const total=allocations.reduce(
+    (sum,x)=>sum+x.amount,
+    0
+  );
+
+  if(!source&&total<ps.pay){
+    alert(
+      'You have money left over. Choose a deposit account so the remainder can stay there, or make your allocation rules add up to 100% of this paycheck.'
+    );
+    return;
+  }
+
+  /*
+    Put the leftover paycheck amount into the deposit account.
+  */
+  if(source){
+    source.balance=
+      Number(source.balance||0)+ps.pay-total;
+  }
+
+  /*
+    Put each allocation into its destination account.
+  */
+  allocations.forEach(x=>{
+    x.account.balance=
+      Number(x.account.balance||0)+x.amount;
+  });
+
+  /*
+    Create a transaction representing the paycheck.
+    The source account is stored so Edit/Delete can find it later.
+  */
+  data.transactions.push({
+    date:data.payAllocator.date||
+      new Date().toISOString().slice(0,10),
+    name:'Paycheck allocation',
+    cat:'Income',
+    amount:ps.pay,
+    type:'income',
+    accountId:source ? source.id : '',
+    allocationId:'alloc_'+
+      Date.now()+'_'+
+      Math.random().toString(36).slice(2,8)
+  });
+
+  /*
+    Save the allocation history.
+  */
+  data.payAllocator.history.push({
+    date:data.payAllocator.date||
+      new Date().toISOString().slice(0,10),
+    pay:ps.pay,
+    total:total,
+    rules:allocations.length
+  });
+
+  syncGoalsToAccounts();
+  save();
+
+  alert(
+    'Paycheck allocated successfully. Your account balances and net worth have been updated.'
+  );
+}
 
 const SUPABASE_URL='https://dgoqhwnuwwtojhnocarw.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_ioS5A18woXeM4m3mok_JPQ_dzhOH7l0';
