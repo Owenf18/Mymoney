@@ -469,7 +469,114 @@ function addTransaction(){
     syncGoalsToAccounts();
     save();
   });
-}function editTransaction(i){let t=data.transactions[i];openForm('Edit transaction',[{key:'date',label:'Transaction date',type:'date',value:/^\d{4}-\d{2}-\d{2}$/.test(t.date||'')?t.date:new Date().toISOString().slice(0,10)},{key:'name',label:'Description',value:t.name},{key:'cat',label:'Category',value:t.cat},{key:'amount',label:'Amount',type:'number',value:t.amount},{key:'type',label:'Type',type:'select',options:['expense','income'],value:t.type}],v=>{let a=num(v.amount),d=normalizeTransactionDate(v.date);if(!d||!v.name.trim()||!Number.isFinite(a))return false;Object.assign(t,{date:d,name:v.name.trim(),cat:v.cat.trim()||'Other',amount:a,type:v.type});save()})}
+function editTransaction(i){
+  const t=data.transactions[i];
+
+  const accounts=data.netAccounts.filter(a=>a.type==='asset');
+
+  if(!accounts.length){
+    alert('No asset accounts are available.');
+    return;
+  }
+
+  openForm('Edit transaction',[
+    {
+      key:'date',
+      label:'Transaction date',
+      type:'date',
+      value:/^\d{4}-\d{2}-\d{2}$/.test(t.date||'')
+        ? t.date
+        : new Date().toISOString().slice(0,10)
+    },
+    {
+      key:'name',
+      label:'Description',
+      value:t.name
+    },
+    {
+      key:'cat',
+      label:'Category',
+      value:t.cat
+    },
+    {
+      key:'amount',
+      label:'Amount',
+      type:'number',
+      value:t.amount
+    },
+    {
+      key:'type',
+      label:'Type',
+      type:'select',
+      options:['expense','income'],
+      value:t.type
+    },
+    {
+      key:'accountId',
+      label:'Account',
+      type:'select',
+      options:accounts.map(a=>a.id),
+      value:t.accountId||accounts[0].id
+    }
+  ],v=>{
+
+    const amount=Number(v.amount);
+    const date=normalizeTransactionDate(v.date);
+
+    if(
+      !date ||
+      !v.name.trim() ||
+      !Number.isFinite(amount) ||
+      amount<=0
+    ){
+      alert('Please enter a valid date, description, and amount.');
+      return false;
+    }
+
+    const oldAccount=accountById(t.accountId);
+    const newAccount=accountById(v.accountId);
+
+    if(!newAccount){
+      alert('Please select a valid account.');
+      return false;
+    }
+
+    /*
+      First undo the OLD transaction.
+    */
+    if(oldAccount){
+      if(t.type==='income'){
+        oldAccount.balance=Number(oldAccount.balance||0)-Number(t.amount||0);
+      }else{
+        oldAccount.balance=Number(oldAccount.balance||0)+Number(t.amount||0);
+      }
+    }
+
+    /*
+      Then apply the NEW transaction.
+    */
+    if(v.type==='income'){
+      newAccount.balance=Number(newAccount.balance||0)+amount;
+    }else{
+      newAccount.balance=Number(newAccount.balance||0)-amount;
+    }
+
+    /*
+      Save the updated transaction.
+    */
+    Object.assign(t,{
+      date:date,
+      name:v.name.trim(),
+      cat:v.cat.trim()||'Other',
+      amount:amount,
+      type:v.type,
+      accountId:newAccount.id
+    });
+
+    syncGoalsToAccounts();
+    save();
+  });
+}
 function delTrans(i){askDelete('transaction',()=>{data.transactions.splice(i,1);save()})}
 function addInvestment(){openForm('Add investment account',[{key:'name',label:'Account name',placeholder:'Roth IRA'},{key:'balance',label:'Current balance',type:'number',value:'0'},{key:'contribution',label:'Monthly contribution',type:'number',value:'0'}],v=>{let b=num(v.balance),c=num(v.contribution);if(!v.name.trim()||!Number.isFinite(b)||!Number.isFinite(c))return false;data.investments.push({name:v.name.trim(),balance:b,contribution:c});save()})}
 function editInvestment(i){let x=data.investments[i];openForm('Edit investment account',[{key:'name',label:'Account name',value:x.name},{key:'balance',label:'Current balance',type:'number',value:x.balance},{key:'contribution',label:'Monthly contribution',type:'number',value:x.contribution}],v=>{let b=num(v.balance),c=num(v.contribution);if(!v.name.trim()||!Number.isFinite(b)||!Number.isFinite(c))return false;Object.assign(x,{name:v.name.trim(),balance:b,contribution:c});save()})}
