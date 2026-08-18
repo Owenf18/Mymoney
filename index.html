@@ -387,6 +387,11 @@ function normalizeTransactionDate(v){let s=String(v||'').trim();if(/^\d{4}-\d{2}
 function addTransaction(){
   const accounts=data.netAccounts.filter(a=>a.type==='asset');
 
+  if(!accounts.length){
+    alert('Please add an asset account in Net Worth before making a transaction.');
+    return;
+  }
+
   openForm('Add transaction',[
     {
       key:'date',
@@ -421,44 +426,50 @@ function addTransaction(){
       key:'accountId',
       label:'Account',
       type:'select',
-      options:['__NONE__',...accounts.map(a=>a.id)],
-      value:accounts.length?accounts[0].id:'__NONE__'
+      options:accounts.map(a=>a.id),
+      value:accounts[0].id
     }
   ],v=>{
-    let a=num(v.amount);
-    let d=normalizeTransactionDate(v.date);
+    const amount=Number(v.amount);
+    const date=normalizeTransactionDate(v.date);
+    const account=accountById(v.accountId);
 
-    if(!d||!v.name.trim()||!Number.isFinite(a)||a<0)return false;
-
-    const account=v.accountId==='__NONE__'
-      ?null
-      :accountById(v.accountId);
-
-    if(!account){
-      alert('Please select an account for this transaction.');
+    if(
+      !date ||
+      !v.name.trim() ||
+      !Number.isFinite(amount) ||
+      amount<=0
+    ){
+      alert('Please enter a valid date, description, and amount.');
       return false;
     }
 
+    if(!account){
+      alert('That account could not be found. Please select an account from your Net Worth accounts.');
+      return false;
+    }
+
+    const oldBalance=Number(account.balance||0);
+
     data.transactions.push({
-      date:d,
+      date:date,
       name:v.name.trim(),
       cat:v.cat.trim()||'Other',
-      amount:a,
+      amount:amount,
       type:v.type,
       accountId:account.id
     });
 
-    if(v.type==='income'){
-      account.balance=Number(account.balance||0)+a;
+    if(v.type==='expense'){
+      account.balance=oldBalance-amount;
     }else{
-      account.balance=Number(account.balance||0)-a;
+      account.balance=oldBalance+amount;
     }
 
     syncGoalsToAccounts();
     save();
   });
-}
-function editTransaction(i){let t=data.transactions[i];openForm('Edit transaction',[{key:'date',label:'Transaction date',type:'date',value:/^\d{4}-\d{2}-\d{2}$/.test(t.date||'')?t.date:new Date().toISOString().slice(0,10)},{key:'name',label:'Description',value:t.name},{key:'cat',label:'Category',value:t.cat},{key:'amount',label:'Amount',type:'number',value:t.amount},{key:'type',label:'Type',type:'select',options:['expense','income'],value:t.type}],v=>{let a=num(v.amount),d=normalizeTransactionDate(v.date);if(!d||!v.name.trim()||!Number.isFinite(a))return false;Object.assign(t,{date:d,name:v.name.trim(),cat:v.cat.trim()||'Other',amount:a,type:v.type});save()})}
+}function editTransaction(i){let t=data.transactions[i];openForm('Edit transaction',[{key:'date',label:'Transaction date',type:'date',value:/^\d{4}-\d{2}-\d{2}$/.test(t.date||'')?t.date:new Date().toISOString().slice(0,10)},{key:'name',label:'Description',value:t.name},{key:'cat',label:'Category',value:t.cat},{key:'amount',label:'Amount',type:'number',value:t.amount},{key:'type',label:'Type',type:'select',options:['expense','income'],value:t.type}],v=>{let a=num(v.amount),d=normalizeTransactionDate(v.date);if(!d||!v.name.trim()||!Number.isFinite(a))return false;Object.assign(t,{date:d,name:v.name.trim(),cat:v.cat.trim()||'Other',amount:a,type:v.type});save()})}
 function delTrans(i){askDelete('transaction',()=>{data.transactions.splice(i,1);save()})}
 function addInvestment(){openForm('Add investment account',[{key:'name',label:'Account name',placeholder:'Roth IRA'},{key:'balance',label:'Current balance',type:'number',value:'0'},{key:'contribution',label:'Monthly contribution',type:'number',value:'0'}],v=>{let b=num(v.balance),c=num(v.contribution);if(!v.name.trim()||!Number.isFinite(b)||!Number.isFinite(c))return false;data.investments.push({name:v.name.trim(),balance:b,contribution:c});save()})}
 function editInvestment(i){let x=data.investments[i];openForm('Edit investment account',[{key:'name',label:'Account name',value:x.name},{key:'balance',label:'Current balance',type:'number',value:x.balance},{key:'contribution',label:'Monthly contribution',type:'number',value:x.contribution}],v=>{let b=num(v.balance),c=num(v.contribution);if(!v.name.trim()||!Number.isFinite(b)||!Number.isFinite(c))return false;Object.assign(x,{name:v.name.trim(),balance:b,contribution:c});save()})}
