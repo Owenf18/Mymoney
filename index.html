@@ -830,12 +830,17 @@ function allocatePaycheck(){
     Save the allocation history.
   */
   data.payAllocator.history.push({
-    date:data.payAllocator.date||
-      new Date().toISOString().slice(0,10),
-    pay:ps.pay,
-    total:total,
-    rules:allocations.length
-  });
+  date:data.payAllocator.date||
+    new Date().toISOString().slice(0,10),
+  pay:ps.pay,
+  total:total,
+  rules:allocations.length,
+  sourceAccountId:source ? source.id : '',
+  allocations:allocations.map(x=>({
+    accountId:x.account.id,
+    amount:x.amount
+  }))
+});
 
   syncGoalsToAccounts();
   save();
