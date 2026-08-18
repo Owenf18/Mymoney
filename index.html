@@ -550,23 +550,86 @@ function editTransaction(i){
     }
 
     /*
-      Undo the OLD transaction.
+      SPECIAL CASE:
+      If this is a paycheck allocation, reverse
+      every account involved in the original allocation.
     */
-    if(oldAccount){
+    if(t.allocationId){
 
-      if(t.type==='income'){
-        oldAccount.balance=
-          Number(oldAccount.balance||0)-
-          Number(t.amount||0);
-      }else{
-        oldAccount.balance=
-          Number(oldAccount.balance||0)+
-          Number(t.amount||0);
+      const history=data.payAllocator.history.find(h=>{
+        return Number(h.pay)===Number(t.amount) &&
+          normalizeTransactionDate(h.date)===
+          normalizeTransactionDate(t.date);
+      });
+
+      if(history){
+
+        const originalSource=accountById(
+          history.sourceAccountId
+        );
+
+        /*
+          Remove the original paycheck remainder
+          from the original deposit account.
+        */
+        if(originalSource){
+          originalSource.balance=
+            Number(originalSource.balance||0)-
+            (
+              Number(history.pay||0)-
+              Number(history.total||0)
+            );
+        }
+
+        /*
+          Remove each original allocation.
+        */
+        if(Array.isArray(history.allocations)){
+          history.allocations.forEach(a=>{
+            const account=accountById(a.accountId);
+
+            if(account){
+              account.balance=
+                Number(account.balance||0)-
+                Number(a.amount||0);
+            }
+          });
+        }
+
+        /*
+          Remove the old allocation history.
+        */
+        const historyIndex=
+          data.payAllocator.history.indexOf(history);
+
+        if(historyIndex>=0){
+          data.payAllocator.history.splice(
+            historyIndex,
+            1
+          );
+        }
+      }
+    }else{
+
+      /*
+        Normal transaction:
+        undo the old transaction.
+      */
+      if(oldAccount){
+        if(t.type==='income'){
+          oldAccount.balance=
+            Number(oldAccount.balance||0)-
+            Number(t.amount||0);
+        }else{
+          oldAccount.balance=
+            Number(oldAccount.balance||0)+
+            Number(t.amount||0);
+        }
       }
     }
 
     /*
-      Apply the NEW transaction.
+      Apply the edited transaction.
     */
     if(v.type==='income'){
       newAccount.balance=
@@ -589,12 +652,11 @@ function editTransaction(i){
     });
 
     /*
-      If this is a paycheck allocation,
-      update the paycheck allocator's saved date/paycheck.
+      A paycheck edited here is now treated as
+      a normal transaction going forward.
     */
     if(t.allocationId){
-      data.payAllocator.lastPay=amount;
-      data.payAllocator.date=date;
+      delete t.allocationId;
     }
 
     syncGoalsToAccounts();
