@@ -324,7 +324,10 @@ function netSavings(){return data.netAccounts.filter(x=>x.type==='asset' && x.ca
 
 function periodsPerYear(){const f=data.payAllocator.frequency;if(f==='weekly')return 52;if(f==='biweekly')return 26;if(f==='twice-monthly')return 24;if(f==='monthly')return 12;return Math.max(1,Number(data.payAllocator.customPeriods)||26)}
 function ruleAmount(rule,pay){if(rule.mode==='percent')return Math.max(0,pay*Number(rule.value||0)/100);return Math.max(0,Number(rule.value||0)*12/periodsPerYear())}
-function accountById(id){return data.netAccounts.find(a=>a.id===id)}
+function accountById(id){
+  if(!id || id==='__NONE__') return null;
+  return data.netAccounts.find(a=>String(a.id)===String(id))||null;
+}
 function allocationTotal(){const pay=Number(data.payAllocator.lastPay||0);return data.payAllocator.rules.reduce((sum,r)=>sum+ruleAmount(r,pay),0)}
 function syncGoalsToAccounts(){data.goals.forEach(g=>{if(g.accountId){const a=accountById(g.accountId);if(a)g.current=Number(a.balance||0)}})}
 function allocationSummary(){const pay=Number(data.payAllocator.lastPay||0),total=allocationTotal();return {pay,total,left:Math.max(0,pay-total)}}
