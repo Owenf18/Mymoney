@@ -382,21 +382,21 @@ function editGoal(i){let g=data.goals[i];openForm('Edit savings goal',[{key:'nam
 function delGoal(i){askDelete('savings goal',()=>{data.goals.splice(i,1);save()})}
 function normalizeTransactionDate(v){let s=String(v||'').trim();if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;let m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);if(m)return `${m[3]}-${String(m[1]).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}`;return s}
 function addTransaction(){
-const accounts=data.netAccounts.filter(a=>a.type==='asset');
-openForm('add transaction',[
-  {
- key:'date',
- label:'transaction date',
- type:'date',
- value:new
-Date().tolSOString().slice(0,10)  },
-  },
-  {
- key:'name',
- label:'description',
- placeholder:'Groceries'
- },
-  {
+  const accounts=data.netAccounts.filter(a=>a.type==='asset');
+
+  openForm('Add transaction',[
+    {
+      key:'date',
+      label:'Transaction date',
+      type:'date',
+      value:new Date().toISOString().slice(0,10)
+    },
+    {
+      key:'name',
+      label:'Description',
+      placeholder:'Groceries'
+    },
+    {
       key:'cat',
       label:'Category',
       placeholder:'Food'
@@ -427,7 +427,9 @@ Date().tolSOString().slice(0,10)  },
 
     if(!d||!v.name.trim()||!Number.isFinite(a)||a<0)return false;
 
-    const account=v.accountId==='__NONE__'?null:accountById(v.accountId);
+    const account=v.accountId==='__NONE__'
+      ?null
+      :accountById(v.accountId);
 
     if(!account){
       alert('Please select an account for this transaction.');
