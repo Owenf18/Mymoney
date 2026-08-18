@@ -672,47 +672,101 @@ function delTrans(i){
       return;
     }
 
-    const account=accountById(t.accountId);
-
     /*
-      Reverse the transaction before deleting it.
-    */
-    if(account){
-
-      if(t.type==='income'){
-        account.balance=
-          Number(account.balance||0)-
-          Number(t.amount||0);
-      }else{
-        account.balance=
-          Number(account.balance||0)+
-          Number(t.amount||0);
-      }
-    }
-
-    /*
-      Remove the transaction.
-    */
-    data.transactions.splice(i,1);
-
-    /*
-      If this was a paycheck allocation,
-      remove its matching allocation history entry.
+      SPECIAL CASE:
+      Reverse every part of a paycheck allocation.
     */
     if(t.allocationId){
 
-      const history=data.payAllocator.history;
+      const history=data.payAllocator.history.find(h=>{
+        return Number(h.pay)===Number(t.amount) &&
+          normalizeTransactionDate(h.date)===
+          normalizeTransactionDate(t.date);
+      });
 
-      const matchIndex=history.findIndex(h=>
-        Number(h.pay)===Number(t.amount) &&
-        normalizeTransactionDate(h.date)===
-        normalizeTransactionDate(t.date)
-      );
+      if(history){
 
-      if(matchIndex>=0){
-        history.splice(matchIndex,1);
+        const source=accountById(
+          history.sourceAccountId
+        );
+
+        /*
+          Reverse the amount that stayed
+          in the deposit account.
+        */
+        if(source){
+          source.balance=
+            Number(source.balance||0)-
+            (
+              Number(history.pay||0)-
+              Number(history.total||0)
+            );
+        }
+
+        /*
+          Reverse every allocation.
+        */
+        if(Array.isArray(history.allocations)){
+          history.allocations.forEach(a=>{
+            const account=accountById(a.accountId);
+
+            if(account){
+              account.balance=
+                Number(account.balance||0)-
+                Number(a.amount||0);
+            }
+          });
+        }
+
+        /*
+          Remove allocation history.
+        */
+        const historyIndex=
+          data.payAllocator.history.indexOf(history);
+
+        if(historyIndex>=0){
+          data.payAllocator.history.splice(
+            historyIndex,
+            1
+          );
+        }
+
+      }else{
+
+        /*
+          Fallback for older paycheck allocations
+          that don't have detailed history.
+        */
+        const account=accountById(t.accountId);
+
+        if(account){
+          account.balance=
+            Number(account.balance||0)-
+            Number(t.amount||0);
+        }
+      }
+
+    }else{
+
+      /*
+        Normal transaction.
+      */
+      const account=accountById(t.accountId);
+
+      if(account){
+        if(t.type==='income'){
+          account.balance=
+            Number(account.balance||0)-
+            Number(t.amount||0);
+        }else{
+          account.balance=
+            Number(account.balance||0)+
+            Number(t.amount||0);
+        }
       }
     }
+
+    data.transactions.splice(i,1);
 
     syncGoalsToAccounts();
     save();
