@@ -460,7 +460,48 @@ function delTrans(i){askDelete('transaction',()=>{data.transactions.splice(i,1);
 function addInvestment(){openForm('Add investment account',[{key:'name',label:'Account name',placeholder:'Roth IRA'},{key:'balance',label:'Current balance',type:'number',value:'0'},{key:'contribution',label:'Monthly contribution',type:'number',value:'0'}],v=>{let b=num(v.balance),c=num(v.contribution);if(!v.name.trim()||!Number.isFinite(b)||!Number.isFinite(c))return false;data.investments.push({name:v.name.trim(),balance:b,contribution:c});save()})}
 function editInvestment(i){let x=data.investments[i];openForm('Edit investment account',[{key:'name',label:'Account name',value:x.name},{key:'balance',label:'Current balance',type:'number',value:x.balance},{key:'contribution',label:'Monthly contribution',type:'number',value:x.contribution}],v=>{let b=num(v.balance),c=num(v.contribution);if(!v.name.trim()||!Number.isFinite(b)||!Number.isFinite(c))return false;Object.assign(x,{name:v.name.trim(),balance:b,contribution:c});save()})}
 function delInvestment(i){askDelete('investment account',()=>{data.investments.splice(i,1);save()})}
-function addNetAccount(){openForm('Add net worth account',[{key:'name',label:'Account or savings bucket',placeholder:'Emergency Fund'},{key:'type',label:'Type',type:'select',options:['asset','debt'],value:'asset'},{key:'category',label:'Category',placeholder:'Savings',value:'Savings'},{key:'balance',label:'Current balance',type:'number',value:'0'}],v=>{let b=num(v.balance);if(!v.name.trim()||!Number.isFinite(b))return false;data.netAccounts.push({name:v.name.trim(),type:v.type,category:v.category.trim()||'Other',balance:b});save()})}
+function addNetAccount(){
+  openForm('Add net worth account',[
+    {
+      key:'name',
+      label:'Account or savings bucket',
+      placeholder:'Emergency Fund'
+    },
+    {
+      key:'type',
+      label:'Type',
+      type:'select',
+      options:['asset','debt'],
+      value:'asset'
+    },
+    {
+      key:'category',
+      label:'Category',
+      placeholder:'Savings',
+      value:'Savings'
+    },
+    {
+      key:'balance',
+      label:'Current balance',
+      type:'number',
+      value:'0'
+    }
+  ],v=>{
+    let b=num(v.balance);
+
+    if(!v.name.trim()||!Number.isFinite(b))return false;
+
+    data.netAccounts.push({
+      id:'acct_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
+      name:v.name.trim(),
+      type:v.type,
+      category:v.category.trim()||'Other',
+      balance:b
+    });
+
+    save();
+  });
+}
 function editNetAccount(i){let x=data.netAccounts[i];openForm('Edit net worth account',[{key:'name',label:'Account name',value:x.name},{key:'type',label:'Type',type:'select',options:['asset','debt'],value:x.type},{key:'category',label:'Category',value:x.category},{key:'balance',label:'Balance',type:'number',value:x.balance}],v=>{let b=num(v.balance);if(!v.name.trim()||!Number.isFinite(b))return false;Object.assign(x,{name:v.name.trim(),type:v.type,category:v.category.trim()||'Other',balance:b});save()})}
 function delNetAccount(i){askDelete('net worth account',()=>{data.netAccounts.splice(i,1);save()})}
 function addNetHistory(){openForm('Record net worth snapshot',[{key:'date',label:'Month / date',value:new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'})},{key:'amount',label:'Net worth',type:'number',value:netWorth()}],v=>{let a=num(v.amount);if(!v.date.trim()||!Number.isFinite(a))return false;data.netHistory.push({date:v.date.trim(),amount:a});save()})}
