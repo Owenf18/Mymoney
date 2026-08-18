@@ -466,10 +466,20 @@ function addTransaction(){
       account.balance=oldBalance+amount;
     }
 
-    syncGoalsToAccounts();
+       syncGoalsToAccounts();
     save();
   });
+}
+
 function editTransaction(i){
+  const t=data.transactions[i];
+
+  const accounts=data.netAccounts.filter(a=>a.type==='asset');
+
+  if(!accounts.length){
+    alert('No asset accounts are available.');
+    return;
+  }
   const t=data.transactions[i];
 
   const accounts=data.netAccounts.filter(a=>a.type==='asset');
