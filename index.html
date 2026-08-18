@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+look<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -474,7 +474,13 @@ function addTransaction(){
 function editTransaction(i){
   const t=data.transactions[i];
 
-  const accounts=data.netAccounts.filter(a=>a.type==='asset');
+  if(!t){
+    return;
+  }
+
+  const accounts=data.netAccounts.filter(
+    a=>a.type==='asset'
+  );
 
   if(!accounts.length){
     alert('No asset accounts are available.');
@@ -544,27 +550,34 @@ function editTransaction(i){
     }
 
     /*
-      First undo the OLD transaction.
+      Undo the OLD transaction.
     */
     if(oldAccount){
+
       if(t.type==='income'){
-        oldAccount.balance=Number(oldAccount.balance||0)-Number(t.amount||0);
+        oldAccount.balance=
+          Number(oldAccount.balance||0)-
+          Number(t.amount||0);
       }else{
-        oldAccount.balance=Number(oldAccount.balance||0)+Number(t.amount||0);
+        oldAccount.balance=
+          Number(oldAccount.balance||0)+
+          Number(t.amount||0);
       }
     }
 
     /*
-      Then apply the NEW transaction.
+      Apply the NEW transaction.
     */
     if(v.type==='income'){
-      newAccount.balance=Number(newAccount.balance||0)+amount;
+      newAccount.balance=
+        Number(newAccount.balance||0)+amount;
     }else{
-      newAccount.balance=Number(newAccount.balance||0)-amount;
+      newAccount.balance=
+        Number(newAccount.balance||0)-amount;
     }
 
     /*
-      Save the updated transaction.
+      Update the transaction.
     */
     Object.assign(t,{
       date:date,
@@ -574,6 +587,15 @@ function editTransaction(i){
       type:v.type,
       accountId:newAccount.id
     });
+
+    /*
+      If this is a paycheck allocation,
+      update the paycheck allocator's saved date/paycheck.
+    */
+    if(t.allocationId){
+      data.payAllocator.lastPay=amount;
+      data.payAllocator.date=date;
+    }
 
     syncGoalsToAccounts();
     save();
