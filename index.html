@@ -577,7 +577,33 @@ function editTransaction(i){
     save();
   });
 }
-function delTrans(i){askDelete('transaction',()=>{data.transactions.splice(i,1);save()})}
+function delTrans(i){
+  askDelete('transaction',()=>{
+    const t=data.transactions[i];
+
+    if(!t){
+      return;
+    }
+
+    const account=accountById(t.accountId);
+
+    /*
+      Reverse the transaction before deleting it.
+    */
+    if(account){
+      if(t.type==='income'){
+        account.balance=Number(account.balance||0)-Number(t.amount||0);
+      }else{
+        account.balance=Number(account.balance||0)+Number(t.amount||0);
+      }
+    }
+
+    data.transactions.splice(i,1);
+
+    syncGoalsToAccounts();
+    save();
+  });
+}
 function addInvestment(){openForm('Add investment account',[{key:'name',label:'Account name',placeholder:'Roth IRA'},{key:'balance',label:'Current balance',type:'number',value:'0'},{key:'contribution',label:'Monthly contribution',type:'number',value:'0'}],v=>{let b=num(v.balance),c=num(v.contribution);if(!v.name.trim()||!Number.isFinite(b)||!Number.isFinite(c))return false;data.investments.push({name:v.name.trim(),balance:b,contribution:c});save()})}
 function editInvestment(i){let x=data.investments[i];openForm('Edit investment account',[{key:'name',label:'Account name',value:x.name},{key:'balance',label:'Current balance',type:'number',value:x.balance},{key:'contribution',label:'Monthly contribution',type:'number',value:x.contribution}],v=>{let b=num(v.balance),c=num(v.contribution);if(!v.name.trim()||!Number.isFinite(b)||!Number.isFinite(c))return false;Object.assign(x,{name:v.name.trim(),balance:b,contribution:c});save()})}
 function delInvestment(i){askDelete('investment account',()=>{data.investments.splice(i,1);save()})}
