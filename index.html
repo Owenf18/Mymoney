@@ -480,14 +480,6 @@ function editTransaction(i){
     alert('No asset accounts are available.');
     return;
   }
-  const t=data.transactions[i];
-
-  const accounts=data.netAccounts.filter(a=>a.type==='asset');
-
-  if(!accounts.length){
-    alert('No asset accounts are available.');
-    return;
-  }
 
   openForm('Edit transaction',[
     {
