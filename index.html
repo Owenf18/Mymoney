@@ -468,7 +468,74 @@ ${data.payAllocator.rules.map((r,i)=>{
  document.getElementById('dashTransactions').innerHTML=data.transactions.slice(-5).reverse().map(t=>transHTML(t)).join('');
  document.getElementById('budgetTable').innerHTML=`<table class="table"><thead><tr><th>Category</th><th>Budget</th><th>Spent</th><th>Remaining</th><th></th></tr></thead><tbody>${data.budget.map((x,i)=>`<tr><td><b>${esc(x.name)}</b></td><td>${money(x.budget)}</td><td>${money(monthSpent(x.name))}</td><td>${money(Number(x.budget)-monthSpent(x.name))}</td><td class="actions"><button class="btn secondary small" onclick="editBudget(${i})">Edit</button><button class="delete" onclick="delBudget(${i})">Delete</button></td></tr>`).join('')}</tbody></table>`;
  document.getElementById('goalCards').innerHTML=data.goals.map((g,i)=>`<div class="card"><div style="font-size:27px">${g.icon||'◎'}</div><h2 style="margin-top:10px">${esc(g.name)}</h2><div class="sub">${money(g.current)} of ${money(g.target)}</div><div class="bar"><div class="fill" style="width:${Math.min(100,g.current/g.target*100)}%"></div></div><div class="goalmeta"><span>${Math.round(g.current/g.target*100)}% complete</span><span>${money(g.monthly)}/mo</span></div><div style="display:flex;gap:8px;margin-top:15px"><button class="btn secondary small" onclick="editGoal(${i})">Edit</button><button class="delete" onclick="delGoal(${i})">Delete</button></div></div>`).join('');
- document.getElementById('transactionTable').innerHTML=`<table class="table"><thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Type</th><th>Amount</th><th></th></tr></thead><tbody>${data.transactions.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map((t)=>{let i=data.transactions.indexOf(t);return `<tr><td>${esc(t.date||'')}</td><td><b>${esc(t.name)}</b></td><td>${esc(t.cat)}</td><td>${t.type}</td><td class="${t.type==='income'?'income':''}">${t.type==='income'?'+':'-'}${money(t.amount)}</td><td class="actions"><button class="btn secondary small" onclick="editTransaction(${i})">Edit</button><button class="delete" onclick="delTrans(${i})">Delete</button></td></tr>`}).join('')}</tbody></table>`;
+ document.getElementById('transactionTable').innerHTML=
+`<table class="table">
+<thead>
+<tr>
+  <th>Date</th>
+  <th>Description</th>
+  <th>Category</th>
+  <th>Type</th>
+  <th>Amount</th>
+  <th></th>
+</tr>
+</thead>
+
+<tbody>
+
+${data.transactions
+  .slice()
+  .sort((a,b)=>(b.date||'').localeCompare(a.date||''))
+  .map((t)=>{
+
+    let i=data.transactions.indexOf(t);
+
+    return `
+    <tr>
+
+      <td>
+        ${esc(t.date||'')}
+      </td>
+
+      <td>
+        <b>${esc(t.name)}</b>
+      </td>
+
+      <td>
+        ${esc(t.cat)}
+      </td>
+
+      <td>
+        ${t.type}
+      </td>
+
+      <td class="${t.type==='income'?'income':''}">
+        ${t.type==='income'?'+':'-'}${money(t.amount)}
+      </td>
+
+      <td class="actions">
+
+        <button
+          class="btn secondary small"
+          onclick="editTransaction(${i})">
+          Edit
+        </button>
+
+        <button
+          class="delete"
+          onclick="delTrans(${i})">
+          Delete
+        </button>
+
+      </td>
+
+    </tr>
+    `;
+
+  }).join('')}
+
+</tbody>
+</table>`;
  document.getElementById('investmentTable').innerHTML=`<table class="table"><thead><tr><th>Account</th><th>Balance</th><th>Monthly contribution</th><th></th></tr></thead><tbody>${data.investments.map((x,i)=>`<tr><td><b>${esc(x.name)}</b></td><td>${money(x.balance)}</td><td>${money(x.contribution)}</td><td class="actions"><button class="btn secondary small" onclick="editInvestment(${i})">Edit</button><button class="delete" onclick="delInvestment(${i})">Delete</button></td></tr>`).join('')}</tbody></table>`;
  document.getElementById('taxIncome').value=data.tax.income;document.getElementById('taxWithheld').value=data.tax.withheld;document.getElementById('taxDeduct').value=data.tax.deduct;calcTax();
  document.getElementById('taxChecklist').innerHTML=['W-2s / wage statements','1099s and other income forms','Interest / dividend statements','Education documents','Charitable donation records','Health insurance / medical records if applicable','Prior-year tax return','Bank account and routing information'].map(x=>`<label style="display:block;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px"><input type="checkbox" style="margin-right:9px"> ${x}</label>`).join('');
