@@ -863,7 +863,81 @@ function addNetHistory(){openForm('Record net worth snapshot',[{key:'date',label
 function delNetHistory(i){askDelete('net worth snapshot',()=>{data.netHistory.splice(i,1);save()})}
 
 function editPaycheck(){openForm('Set your paycheck',[{key:'amount',label:'Take-home paycheck amount',type:'number',value:data.payAllocator.lastPay},{key:'date',label:'Paycheck date',type:'text',value:data.payAllocator.date||new Date().toLocaleDateString('en-US')},{key:'frequency',label:'How often are you paid?',type:'select',options:['weekly','biweekly','twice-monthly','monthly','custom'],value:data.payAllocator.frequency},{key:'customPeriods',label:'Paychecks per year if custom',type:'number',value:data.payAllocator.customPeriods||26},{key:'source',label:'Account the paycheck lands in (optional)',type:'select',options:['__NONE__',...data.netAccounts.filter(a=>a.type==='asset').map(a=>a.id)],value:data.payAllocator.sourceAccountId||'__NONE__'}],v=>{let a=num(v.amount),cp=Math.max(1,Math.round(num(v.customPeriods)));if(!Number.isFinite(a)||a<0)return false;data.payAllocator.lastPay=a;data.payAllocator.date=v.date.trim();data.payAllocator.frequency=v.frequency;data.payAllocator.customPeriods=cp;data.payAllocator.sourceAccountId=v.source==='__NONE__'?'':v.source;save()})}
-function addAllocationRule(){if(!data.netAccounts.length){alert('Add at least one Net Worth account first.');return}openForm('Add paycheck allocation',[{key:'accountId',label:'Account / savings space',type:'select',options:data.netAccounts.filter(a=>a.type==='asset').map(a=>a.id),value:(data.netAccounts.find(a=>a.type==='asset')||{}).id},{key:'mode',label:'How should it be calculated?',type:'select',options:['percent','monthly'],value:'percent'},{key:'value',label:'Percentage or monthly amount',type:'number',value:'10'}],v=>{let a=accountById(v.accountId),val=num(v.value);if(!a||!Number.isFinite(val)||val<0)return false;if(v.mode==='percent'&&val>100)return false;if(data.payAllocator.sourceAccountId===v.accountId)return false;data.payAllocator.rules.push({accountId:v.accountId,mode:v.mode,value:val});save()})}
+function addAllocationRule(){
+  const assetAccounts=data.netAccounts.filter(a=>a.type==='asset');
+
+  if(!assetAccounts.length && !data.investments.length){
+    alert('Add a Net Worth account or Investment account first.');
+    return;
+  }
+
+  const accountOptions=assetAccounts.map(a=>a.id);
+  const investmentOptions=data.investments.map(x=>x.id);
+
+  openForm('Add paycheck allocation',[
+    {
+      key:'targetType',
+      label:'Where should the money go?',
+      type:'select',
+      options:['account','investment'],
+      value:'account'
+    },
+    {
+      key:'accountId',
+      label:'Account / investment',
+      type:'select',
+      options:[...accountOptions,...investmentOptions],
+      value:accountOptions[0]||investmentOptions[0]
+    },
+    {
+      key:'mode',
+      label:'How should it be calculated?',
+      type:'select',
+      options:['percent','monthly'],
+      value:'percent'
+    },
+    {
+      key:'value',
+      label:'Percentage or monthly amount',
+      type:'number',
+      value:'10'
+    }
+  ],v=>{
+    let val=num(v.value);
+
+    if(!Number.isFinite(val)||val<0)return false;
+
+    if(v.mode==='percent'&&val>100){
+      alert('A percentage cannot be greater than 100%.');
+      return false;
+    }
+
+    let target=allocationTarget(v.targetType,v.accountId);
+
+    if(!target){
+      alert('Please select a valid destination.');
+      return false;
+    }
+
+    if(
+      v.targetType==='account' &&
+      data.payAllocator.sourceAccountId===v.accountId
+    ){
+      alert('Your deposit account cannot also be an allocation target.');
+      return false;
+    }
+
+    data.payAllocator.rules.push({
+      targetType:v.targetType,
+      accountId:v.targetType==='account'?v.accountId:'',
+      investmentId:v.targetType==='investment'?v.accountId:'',
+      mode:v.mode,
+      value:val
+    });
+
+    save();
+  });
+}
 function editAllocationRule(i){let r=data.payAllocator.rules[i];openForm('Edit paycheck allocation',[{key:'accountId',label:'Account / savings space',type:'select',options:data.netAccounts.filter(a=>a.type==='asset').map(a=>a.id),value:r.accountId},{key:'mode',label:'How should it be calculated?',type:'select',options:['percent','monthly'],value:r.mode},{key:'value',label:'Percentage or monthly amount',type:'number',value:r.value}],v=>{let a=accountById(v.accountId),val=num(v.value);if(!a||!Number.isFinite(val)||val<0)return false;if(v.mode==='percent'&&val>100)return false;if(data.payAllocator.sourceAccountId===v.accountId)return false;Object.assign(r,{accountId:v.accountId,mode:v.mode,value:val});save()})}
 function delAllocationRule(i){askDelete('allocation rule',()=>{data.payAllocator.rules.splice(i,1);save()})}
 function allocatePaycheck(){
