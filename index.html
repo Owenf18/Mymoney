@@ -1019,6 +1019,7 @@ function editAllocationRule(i){
 }
 function delAllocationRule(i){askDelete('allocation rule',()=>{data.payAllocator.rules.splice(i,1);save()})}
 function allocatePaycheck(){
+
   const ps=allocationSummary();
 
   if(ps.pay<=0){
@@ -1040,7 +1041,9 @@ function allocatePaycheck(){
       v=>{
         let a=num(v.amount);
 
-        if(!Number.isFinite(a)||a<=0)return false;
+        if(!Number.isFinite(a)||a<=0){
+          return false;
+        }
 
         data.payAllocator.lastPay=a;
         data.payAllocator.date=v.date;
@@ -1053,32 +1056,50 @@ function allocatePaycheck(){
   }
 
   if(ps.total>ps.pay){
-    alert('Your allocation rules are larger than this paycheck. Reduce a rule before allocating.');
+    alert(
+      'Your allocation rules are larger than this paycheck. Reduce a rule before allocating.'
+    );
     return;
   }
 
-  const source=accountById(data.payAllocator.sourceAccountId);
-
-  if(data.payAllocator.sourceAccountId&&!source){
-    data.payAllocator.sourceAccountId='';
-  }
+  const source=accountById(
+    data.payAllocator.sourceAccountId
+  );
 
   const allocations=[];
 
   data.payAllocator.rules.forEach(r=>{
-    const a=accountById(r.accountId);
+
+    const targetId=
+      r.targetType==='investment'
+        ? r.investmentId
+        : r.accountId;
+
+    const target=allocationTarget(
+      r.targetType||'account',
+      targetId
+    );
+
     const amt=ruleAmount(r,ps.pay);
 
-    if(a&&amt>0){
+    if(target&&amt>0){
       allocations.push({
-        account:a,
+        target:target,
         amount:amt
       });
     }
   });
 
-  if(allocations.some(x=>source&&x.account.id===source.id)){
-    alert('Your deposit account cannot also be an allocation target. Choose a different target.');
+  if(
+    allocations.some(
+      x=>source &&
+      x.target.type==='account' &&
+      x.target.id===source.id
+    )
+  ){
+    alert(
+      'Your deposit account cannot also be an allocation target. Choose a different target.'
+    );
     return;
   }
 
@@ -1094,23 +1115,17 @@ function allocatePaycheck(){
     return;
   }
 
-  /*
-    Actually move the money between accounts.
-  */
-
   if(source){
     source.balance=
       Number(source.balance||0)+ps.pay-total;
   }
 
   allocations.forEach(x=>{
-    x.account.balance=
-      Number(x.account.balance||0)+x.amount;
-  });
 
-  /*
-    Add the main paycheck transaction.
-  */
+    x.target.object.balance=
+      Number(x.target.object.balance||0)+x.amount;
+
+  });
 
   const paycheckDate=
     data.payAllocator.date||
@@ -1122,35 +1137,33 @@ function allocatePaycheck(){
     cat:'Income',
     amount:ps.pay,
     type:'income',
-    accountId:source?source.id:''
+    accountId:source?source.id:'',
+    allocationOnly:false
   });
 
-  /*
-    Add transaction records showing where
-    the paycheck was allocated.
-
-    These are records only. The account balances
-    were already updated above.
-  */
-
   allocations.forEach(x=>{
+
     data.transactions.push({
       date:paycheckDate,
-      name:'Paycheck → '+x.account.name,
+      name:'Paycheck → '+x.target.name,
       cat:'Paycheck Allocation',
       amount:x.amount,
       type:'expense',
-      accountId:x.account.id,
+      accountId:
+        x.target.type==='account'
+          ? x.target.id
+          : '',
+      investmentId:
+        x.target.type==='investment'
+          ? x.target.id
+          : '',
       allocationOnly:true
     });
+
   });
 
-  /*
-    If there is money left in the deposit account,
-    record that portion too.
-  */
-
   if(source&&ps.pay-total>0){
+
     const remainder=ps.pay-total;
 
     data.transactions.push({
@@ -1170,7 +1183,7 @@ function allocatePaycheck(){
     date:data.payAllocator.date||
       new Date().toLocaleDateString('en-US'),
     pay:ps.pay,
-    total,
+    total:total,
     rules:allocations.length
   });
 
@@ -1179,10 +1192,9 @@ function allocatePaycheck(){
   save();
 
   alert(
-    'Paycheck allocated successfully. Your account balances and transaction history have been updated.'
+    'Paycheck allocated successfully. Your accounts, investments, and transaction history have been updated.'
   );
 }
-
 const SUPABASE_URL='https://dgoqhwnuwwtojhnocarw.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_ioS5A18woXeM4m3mok_JPQ_dzhOH7l0';
 
