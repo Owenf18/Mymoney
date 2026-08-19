@@ -261,30 +261,95 @@ let data=JSON.parse(localStorage.getItem(KEY)||'null')||{
  tax:{income:0,withheld:0,deduct:0}
 };
 function normalizeData(){
- if(Array.isArray(data.transactions)) data.transactions.forEach(t=>{if(!t.date)t.date=''});
- if(!Array.isArray(data.netAccounts)) data.netAccounts=[];
- if(!Array.isArray(data.netHistory)) data.netHistory=[];
- if(!Array.isArray(data.budget)) data.budget=[];
- if(!Array.isArray(data.goals)) data.goals=[];
- if(!Array.isArray(data.transactions)) data.transactions=[];
- data.transactions.forEach(t=>{if(!t.date)t.date=new Date().toISOString().slice(0,10)});
- if(!Array.isArray(data.investments)) data.investments=[];
- data.investments.forEach((x,i)=>{
-  if(!x.id){
-    x.id='inv_'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,7);
+  if(Array.isArray(data.transactions)){
+    data.transactions.forEach(t=>{
+      if(!t.date){
+        t.date=new Date().toISOString().slice(0,10);
+      }
+    });
   }
-});
- if(!data.payAllocator || typeof data.payAllocator!=='object') data.payAllocator={lastPay:0,date:'',frequency:'biweekly',customPeriods:26,sourceAccountId:'',rules:[],history:[]};
- if(!Array.isArray(data.payAllocator.rules)) data.payAllocator.rules=[];
- if(!Array.isArray(data.payAllocator.history)) data.payAllocator.history=[];
- if(typeof data.payAllocator.lastPay!=='number') data.payAllocator.lastPay=0;
- if(!data.tax || typeof data.tax!=='object') data.tax={income:0,withheld:0,deduct:0};
- if(typeof data.income!=='number') data.income=0;
- data.netAccounts.forEach((a,i)=>{if(!a.id)a.id='acct_'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,7)});
+
+  if(!Array.isArray(data.netAccounts)) data.netAccounts=[];
+  if(!Array.isArray(data.netHistory)) data.netHistory=[];
+  if(!Array.isArray(data.budget)) data.budget=[];
+  if(!Array.isArray(data.goals)) data.goals=[];
+  if(!Array.isArray(data.transactions)) data.transactions=[];
+  if(!Array.isArray(data.investments)) data.investments=[];
+
+  if(!data.payAllocator||typeof data.payAllocator!=='object'){
+    data.payAllocator={
+      lastPay:0,
+      date:'',
+      frequency:'biweekly',
+      customPeriods:26,
+      sourceAccountId:'',
+      rules:[],
+      history:[]
+    };
+  }
+
+  if(!Array.isArray(data.payAllocator.rules)){
+    data.payAllocator.rules=[];
+  }
+
+  if(!Array.isArray(data.payAllocator.history)){
+    data.payAllocator.history=[];
+  }
+
+  if(typeof data.payAllocator.lastPay!=='number'){
+    data.payAllocator.lastPay=0;
+  }
+
+  if(!data.tax||typeof data.tax!=='object'){
+    data.tax={
+      income:0,
+      withheld:0,
+      deduct:0
+    };
+  }
+
+  if(typeof data.income!=='number'){
+    data.income=0;
+  }
+
+  /*
+    Give every Net Worth account a permanent ID.
+  */
+  data.netAccounts.forEach((a,i)=>{
+    if(!a.id){
+      a.id=
+        'acct_'+
+        Date.now()+'_'+
+        i+'_'+
+        Math.random().toString(36).slice(2,7);
+    }
+  });
+
+  /*
+    Give every investment account a permanent ID.
+  */
+  data.investments.forEach((x,i)=>{
+    if(!x.id){
+      x.id=
+        'inv_'+
+        Date.now()+'_'+
+        i+'_'+
+        Math.random().toString(36).slice(2,7);
+    }
+  });
+
+  /*
+    Convert old paycheck allocation rules
+    to the new Net Worth / Investment format.
+  */
+  data.payAllocator.rules.forEach(r=>{
+    if(!r.destinationType&&r.accountId){
+      r.destinationType='net';
+      r.destinationId=r.accountId;
+      delete r.accountId;
+    }
+  });
 }
-normalizeData();
-syncGoalsToAccounts();
-let cloudSaveTimer=null;
 function save(){
   localStorage.setItem(KEY,JSON.stringify(data));
   render();
