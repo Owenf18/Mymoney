@@ -384,7 +384,72 @@ function render(){
  document.getElementById('payRuleCount').textContent=data.payAllocator.rules.length;
  document.getElementById('payPlannedNote').textContent=ps.total>ps.pay?'Rules exceed this paycheck':'Based on your allocation rules';
  document.getElementById('paySetup').innerHTML=`<div class="formgrid"><div><div class="label">Paycheck date</div><div style="margin-top:7px;font-weight:700">${esc(data.payAllocator.date||'Not entered')}</div></div><div><div class="label">Pay frequency</div><div style="margin-top:7px;font-weight:700">${esc(data.payAllocator.frequency==='twice-monthly'?'Twice monthly':data.payAllocator.frequency.charAt(0).toUpperCase()+data.payAllocator.frequency.slice(1))}</div></div><div><div class="label">Deposit account</div><div style="margin-top:7px;font-weight:700">${esc((accountById(data.payAllocator.sourceAccountId)||{}).name||'No deposit account')}</div></div></div>`;
- document.getElementById('allocationRules').innerHTML=data.payAllocator.rules.length?`<table class="table"><thead><tr><th>Account</th><th>Rule</th><th>This pay</th><th></th></tr></thead><tbody>${data.payAllocator.rules.map((r,i)=>{const a=accountById(r.accountId),amt=ruleAmount(r,ps.pay);return `<tr><td><b>${esc(a?a.name:'Missing account')}</b></td><td>${r.mode==='percent'?esc(r.value)+'% of each pay':money(r.value)+'/month'}</td><td>${money(amt)}</td><td class="actions"><button class="btn secondary small" onclick="editAllocationRule(${i})">Edit</button><button class="delete" onclick="delAllocationRule(${i})">Delete</button></td></tr>`}).join('')}</tbody></table>`:'<div class="empty">No allocation rules yet. Add one for each account or savings space you want funded automatically.</div>';
+ document.getElementById('allocationRules').innerHTML=
+data.payAllocator.rules.length
+?`<table class="table">
+<thead>
+<tr>
+<th>Destination</th>
+<th>Rule</th>
+<th>This pay</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+${data.payAllocator.rules.map((r,i)=>{
+
+  const targetId=
+    r.targetType==='investment'
+      ? r.investmentId
+      : r.accountId;
+
+  const target=
+    allocationTarget(
+      r.targetType||'account',
+      targetId
+    );
+
+  const amt=ruleAmount(r,ps.pay);
+
+  return `
+  <tr>
+    <td>
+      <b>${esc(target?target.name:'Missing destination')}</b>
+      <div class="tcat">
+        ${r.targetType==='investment'?'Investment':'Account'}
+      </div>
+    </td>
+
+    <td>
+      ${r.mode==='percent'
+        ?esc(r.value)+'% of each pay'
+        :money(r.value)+'/month'}
+    </td>
+
+    <td>
+      ${money(amt)}
+    </td>
+
+    <td class="actions">
+      <button
+        class="btn secondary small"
+        onclick="editAllocationRule(${i})">
+        Edit
+      </button>
+
+      <button
+        class="delete"
+        onclick="delAllocationRule(${i})">
+        Delete
+      </button>
+    </td>
+  </tr>
+  `;
+
+}).join('')}
+</tbody>
+</table>`
+:'<div class="empty">No allocation rules yet. Add one for each account or investment you want funded automatically.</div>';
  document.getElementById('allocationHistory').innerHTML=data.payAllocator.history.length?data.payAllocator.history.slice().reverse().map((h,ri)=>`<div class="transaction"><div><div class="tname">${esc(h.date||'Paycheck')}</div><div class="tcat">${money(h.pay)} allocated • ${h.rules} rules</div></div><div class="amount income">${money(h.total)}</div></div>`).join(''):'<div class="empty">No allocations yet. Your first paycheck will appear here.</div>';
 
  document.getElementById('nwAssets').textContent=money(netAssets());
