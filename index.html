@@ -1221,7 +1221,6 @@ function editAllocationRule(i){
 }
 function delAllocationRule(i){askDelete('allocation rule',()=>{data.payAllocator.rules.splice(i,1);save()})}
 function allocatePaycheck(){
-
   const ps=allocationSummary();
 
   if(ps.pay<=0){
@@ -1243,9 +1242,7 @@ function allocatePaycheck(){
       v=>{
         let a=num(v.amount);
 
-        if(!Number.isFinite(a)||a<=0){
-          return false;
-        }
+        if(!Number.isFinite(a)||a<=0)return false;
 
         data.payAllocator.lastPay=a;
         data.payAllocator.date=v.date;
@@ -1258,55 +1255,63 @@ function allocatePaycheck(){
   }
 
   if(ps.total>ps.pay){
-    alert(
-      'Your allocation rules are larger than this paycheck. Reduce a rule before allocating.'
-    );
+    alert('Your allocation rules are larger than this paycheck. Reduce a rule before allocating.');
     return;
   }
 
-  const source=accountById(
-    data.payAllocator.sourceAccountId
-  );
+  const source=accountById(data.payAllocator.sourceAccountId);
+
+  if(data.payAllocator.sourceAccountId&&!source){
+    data.payAllocator.sourceAccountId='';
+  }
 
   const allocations=[];
 
   data.payAllocator.rules.forEach(r=>{
-
-    const targetId=
-      r.targetType==='investment'
-        ? r.investmentId
-        : r.accountId;
-
-    const target=allocationTarget(
-      r.targetType||'account',
-      targetId
-    );
-
     const amt=ruleAmount(r,ps.pay);
 
-    if(target&&amt>0){
-      allocations.push({
-        target:target,
-        amount:amt
-      });
+    if(!amt||amt<=0)return;
+
+    if(r.destinationType==='net'){
+      const account=accountById(r.destinationId);
+
+      if(account){
+        allocations.push({
+          type:'net',
+          account:account,
+          amount:amt
+        });
+      }
+    }
+
+    if(r.destinationType==='inv'){
+      const investment=data.investments.find(
+        x=>String(x.id)===String(r.destinationId)
+      );
+
+      if(investment){
+        allocations.push({
+          type:'investment',
+          account:investment,
+          amount:amt
+        });
+      }
     }
   });
 
   if(
     allocations.some(
-      x=>source &&
-      x.target.type==='account' &&
-      x.target.id===source.id
+      x=>source&&
+      x.type==='net'&&
+      x.account.id===source.id
     )
   ){
-    alert(
-      'Your deposit account cannot also be an allocation target. Choose a different target.'
-    );
+    alert('Your deposit account cannot also be an allocation target. Choose a different target.');
     return;
   }
 
   const total=allocations.reduce(
-    (a,x)=>a+x.amount,
+    (sum,x)=>sum+x.amount,
     0
   );
 
@@ -1317,67 +1322,64 @@ function allocatePaycheck(){
     return;
   }
 
+  /*
+    Put the leftover money into the paycheck's
+    deposit account.
+  */
   if(source){
     source.balance=
       Number(source.balance||0)+ps.pay-total;
   }
 
+  /*
+    Send each allocation to its destination.
+  */
   allocations.forEach(x=>{
+    if(x.type==='net'){
+      x.account.balance=
+        Number(x.account.balance||0)+x.amount;
+    }
 
-    x.target.object.balance=
-      Number(x.target.object.balance||0)+x.amount;
-
+    if(x.type==='investment'){
+      x.account.balance=
+        Number(x.account.balance||0)+x.amount;
+    }
   });
 
-  const paycheckDate=
-    data.payAllocator.date||
-    new Date().toISOString().slice(0,10);
-
+  /*
+    Add the main paycheck transaction.
+  */
   data.transactions.push({
-    date:paycheckDate,
+    date:data.payAllocator.date||
+      new Date().toISOString().slice(0,10),
     name:'Paycheck',
     cat:'Income',
     amount:ps.pay,
     type:'income',
-    accountId:source?source.id:'',
-    allocationOnly:false
+    accountId:source?source.id:''
   });
 
+  /*
+    Add a transaction showing exactly where
+    each allocation went.
+  */
   allocations.forEach(x=>{
+    const destinationName=x.account.name;
 
     data.transactions.push({
-      date:paycheckDate,
-      name:'Paycheck → '+x.target.name,
-      cat:'Paycheck Allocation',
+      date:data.payAllocator.date||
+        new Date().toISOString().slice(0,10),
+      name:'Paycheck → '+destinationName,
+      cat:x.type==='investment'
+        ?'Investment'
+        :'Savings',
       amount:x.amount,
-      type:'expense',
-      accountId:
-        x.target.type==='account'
-          ? x.target.id
-          : '',
-      investmentId:
-        x.target.type==='investment'
-          ? x.target.id
-          : '',
-      allocationOnly:true
+      type:'transfer',
+      accountId:x.type==='net'
+        ?x.account.id
+        :''
     });
-
   });
-
-  if(source&&ps.pay-total>0){
-
-    const remainder=ps.pay-total;
-
-    data.transactions.push({
-      date:paycheckDate,
-      name:'Paycheck → '+source.name,
-      cat:'Paycheck Allocation',
-      amount:remainder,
-      type:'expense',
-      accountId:source.id,
-      allocationOnly:true
-    });
-  }
 
   syncGoalsToAccounts();
 
@@ -1394,7 +1396,7 @@ function allocatePaycheck(){
   save();
 
   alert(
-    'Paycheck allocated successfully. Your accounts, investments, and transaction history have been updated.'
+    'Paycheck allocated successfully. Your paycheck and each destination have been recorded.'
   );
 }
 const SUPABASE_URL='https://dgoqhwnuwwtojhnocarw.supabase.co';
