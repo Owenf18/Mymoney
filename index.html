@@ -842,18 +842,16 @@ function allocatePaycheck(){
         {
           key:'date',
           label:'Paycheck date',
-          value:new Date().toISOString().slice(0,10)
+          value:new Date().toLocaleDateString('en-US')
         }
       ],
       v=>{
         let a=num(v.amount);
 
-        if(!Number.isFinite(a)||a<=0){
-          return false;
-        }
+        if(!Number.isFinite(a)||a<=0)return false;
 
         data.payAllocator.lastPay=a;
-        data.payAllocator.date=normalizeTransactionDate(v.date);
+        data.payAllocator.date=v.date;
 
         save();
       }
@@ -876,29 +874,24 @@ function allocatePaycheck(){
   const allocations=[];
 
   data.payAllocator.rules.forEach(r=>{
-    const account=accountById(r.accountId);
-    const amount=ruleAmount(r,ps.pay);
+    const a=accountById(r.accountId);
+    const amt=ruleAmount(r,ps.pay);
 
-    if(account&&amount>0){
+    if(a&&amt>0){
       allocations.push({
-        account:account,
-        amount:amount
+        account:a,
+        amount:amt
       });
     }
   });
 
-  if(
-    allocations.some(x=>
-      source &&
-      x.account.id===source.id
-    )
-  ){
+  if(allocations.some(x=>source&&x.account.id===source.id)){
     alert('Your deposit account cannot also be an allocation target. Choose a different target.');
     return;
   }
 
   const total=allocations.reduce(
-    (sum,x)=>sum+x.amount,
+    (a,x)=>a+x.amount,
     0
   );
 
@@ -910,59 +903,91 @@ function allocatePaycheck(){
   }
 
   /*
-    Put the leftover paycheck amount into the deposit account.
+    Actually move the money between accounts.
   */
+
   if(source){
     source.balance=
       Number(source.balance||0)+ps.pay-total;
   }
 
-  /*
-    Put each allocation into its destination account.
-  */
   allocations.forEach(x=>{
     x.account.balance=
       Number(x.account.balance||0)+x.amount;
   });
 
   /*
-    Create a transaction representing the paycheck.
-    The source account is stored so Edit/Delete can find it later.
+    Add the main paycheck transaction.
   */
+
+  const paycheckDate=
+    data.payAllocator.date||
+    new Date().toISOString().slice(0,10);
+
   data.transactions.push({
-    date:data.payAllocator.date||
-      new Date().toISOString().slice(0,10),
-    name:'Paycheck allocation',
+    date:paycheckDate,
+    name:'Paycheck',
     cat:'Income',
     amount:ps.pay,
     type:'income',
-    accountId:source ? source.id : '',
-    allocationId:'alloc_'+
-      Date.now()+'_'+
-      Math.random().toString(36).slice(2,8)
+    accountId:source?source.id:''
   });
 
   /*
-    Save the allocation history.
+    Add transaction records showing where
+    the paycheck was allocated.
+
+    These are records only. The account balances
+    were already updated above.
   */
-  data.payAllocator.history.push({
-  date:data.payAllocator.date||
-    new Date().toISOString().slice(0,10),
-  pay:ps.pay,
-  total:total,
-  rules:allocations.length,
-  sourceAccountId:source ? source.id : '',
-  allocations:allocations.map(x=>({
-    accountId:x.account.id,
-    amount:x.amount
-  }))
-});
+
+  allocations.forEach(x=>{
+    data.transactions.push({
+      date:paycheckDate,
+      name:'Paycheck → '+x.account.name,
+      cat:'Paycheck Allocation',
+      amount:x.amount,
+      type:'expense',
+      accountId:x.account.id,
+      allocationOnly:true
+    });
+  });
+
+  /*
+    If there is money left in the deposit account,
+    record that portion too.
+  */
+
+  if(source&&ps.pay-total>0){
+    const remainder=ps.pay-total;
+
+    data.transactions.push({
+      date:paycheckDate,
+      name:'Paycheck → '+source.name,
+      cat:'Paycheck Allocation',
+      amount:remainder,
+      type:'expense',
+      accountId:source.id,
+      allocationOnly:true
+    });
+  }
 
   syncGoalsToAccounts();
+
+  data.payAllocator.history.push({
+    date:data.payAllocator.date||
+      new Date().toLocaleDateString('en-US'),
+    pay:ps.pay,
+    total,
+    rules:allocations.length
+  });
+
+  data.income=income();
+
   save();
 
   alert(
-    'Paycheck allocated successfully. Your account balances and net worth have been updated.'
+    'Paycheck allocated successfully. Your account balances and transaction history have been updated.'
   );
 }
 
