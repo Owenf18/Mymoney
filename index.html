@@ -938,7 +938,85 @@ function addAllocationRule(){
     save();
   });
 }
-function editAllocationRule(i){let r=data.payAllocator.rules[i];openForm('Edit paycheck allocation',[{key:'accountId',label:'Account / savings space',type:'select',options:data.netAccounts.filter(a=>a.type==='asset').map(a=>a.id),value:r.accountId},{key:'mode',label:'How should it be calculated?',type:'select',options:['percent','monthly'],value:r.mode},{key:'value',label:'Percentage or monthly amount',type:'number',value:r.value}],v=>{let a=accountById(v.accountId),val=num(v.value);if(!a||!Number.isFinite(val)||val<0)return false;if(v.mode==='percent'&&val>100)return false;if(data.payAllocator.sourceAccountId===v.accountId)return false;Object.assign(r,{accountId:v.accountId,mode:v.mode,value:val});save()})}
+function editAllocationRule(i){
+  let r=data.payAllocator.rules[i];
+
+  const assetAccounts=data.netAccounts.filter(a=>a.type==='asset');
+
+  const accountOptions=assetAccounts.map(a=>a.id);
+  const investmentOptions=data.investments.map(x=>x.id);
+
+  const targetType=r.targetType||'account';
+
+  const currentId=
+    targetType==='investment'
+      ? r.investmentId
+      : r.accountId;
+
+  openForm('Edit paycheck allocation',[
+    {
+      key:'targetType',
+      label:'Where should the money go?',
+      type:'select',
+      options:['account','investment'],
+      value:targetType
+    },
+    {
+      key:'accountId',
+      label:'Account / investment',
+      type:'select',
+      options:[...accountOptions,...investmentOptions],
+      value:currentId
+    },
+    {
+      key:'mode',
+      label:'How should it be calculated?',
+      type:'select',
+      options:['percent','monthly'],
+      value:r.mode
+    },
+    {
+      key:'value',
+      label:'Percentage or monthly amount',
+      type:'number',
+      value:r.value
+    }
+  ],v=>{
+    let val=num(v.value);
+
+    if(!Number.isFinite(val)||val<0)return false;
+
+    if(v.mode==='percent'&&val>100){
+      alert('A percentage cannot be greater than 100%.');
+      return false;
+    }
+
+    let target=allocationTarget(v.targetType,v.accountId);
+
+    if(!target){
+      alert('Please select a valid destination.');
+      return false;
+    }
+
+    if(
+      v.targetType==='account' &&
+      data.payAllocator.sourceAccountId===v.accountId
+    ){
+      alert('Your deposit account cannot also be an allocation target.');
+      return false;
+    }
+
+    Object.assign(r,{
+      targetType:v.targetType,
+      accountId:v.targetType==='account'?v.accountId:'',
+      investmentId:v.targetType==='investment'?v.accountId:'',
+      mode:v.mode,
+      value:val
+    });
+
+    save();
+  });
+}
 function delAllocationRule(i){askDelete('allocation rule',()=>{data.payAllocator.rules.splice(i,1);save()})}
 function allocatePaycheck(){
   const ps=allocationSummary();
