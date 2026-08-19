@@ -543,7 +543,64 @@ ${data.transactions
 function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function goalHTML(g){let p=Math.min(100,g.current/g.target*100);return `<div class="goal"><div class="goaltop"><span>${g.icon||'◎'} ${esc(g.name)}</span><span>${money(g.current)}</span></div><div class="bar" style="margin-top:8px"><div class="fill" style="width:${p}%"></div></div><div class="goalmeta"><span>${Math.round(p)}% complete</span><span>Target ${money(g.target)}</span></div></div>`}
 function transHTML(t){return `<div class="transaction"><div class="tleft"><div class="avatar">${t.type==='income'?'↑':'$'}</div><div><div class="tname">${esc(t.name)}</div><div class="tcat">${esc(t.cat)}${t.date?' • '+esc(t.date):''}</div></div></div><div class="amount ${t.type==='income'?'income':''}">${t.type==='income'?'+':'-'}${money(t.amount)}</div></div>`}
-function openForm(title,fields,onSave){const modal=document.getElementById('modal'),body=document.getElementById('modalBody');document.getElementById('modalTitle').textContent=title;body.innerHTML='<div class="modalform">'+fields.map(f=>`<div class="field"><label>${esc(f.label)}</label>${f.type==='select'?`<select id="mf_${f.key}">${f.options.map(o=>{const acct=accountById(o);const label=o==='__NONE__'?'None':(acct?acct.name:o);return `<option value="${esc(o)}" ${String(o)===String(f.value)?'selected':''}>${esc(label)}</option>`}).join('')}</select>`:`<input id="mf_${f.key}" type="${f.type||'text'}" value="${esc(f.value??'')}" placeholder="${esc(f.placeholder||'')}">`}</div>`).join('')+'<div class="modalmsg" id="modalMsg"></div></div>';modal.classList.add('open');document.getElementById('modalSave').onclick=()=>{const vals={};fields.forEach(f=>vals[f.key]=document.getElementById('mf_'+f.key).value);const ok=onSave(vals);if(ok!==false)closeModal()};setTimeout(()=>body.querySelector('input,select')?.focus(),50)}
+function openForm(title,fields,onSave){
+  const modal=document.getElementById('modal');
+  const body=document.getElementById('modalBody');
+
+  document.getElementById('modalTitle').textContent=title;
+
+  body.innerHTML='<div class="modalform">'+
+    fields.map(f=>`
+      <div class="field">
+        <label>${esc(f.label)}</label>
+        ${
+          f.type==='select'
+          ?
+          `<select id="mf_${f.key}">
+            ${f.options.map(o=>{
+              let label=o;
+
+              if(f.displayLabels){
+                const item=f.displayLabels.find(x=>x.id===o);
+                if(item) label=item.label;
+              }else{
+                const acct=accountById(o);
+                label=o==='__NONE__'
+                  ?'None'
+                  :(acct?acct.name:o);
+              }
+
+              return `<option value="${esc(o)}" ${String(o)===String(f.value)?'selected':''}>${esc(label)}</option>`;
+            }).join('')}
+          </select>`
+          :
+          `<input id="mf_${f.key}"
+            type="${f.type||'text'}"
+            value="${esc(f.value??'')}"
+            placeholder="${esc(f.placeholder||'')}">`
+        }
+      </div>
+    `).join('')+
+    '<div class="modalmsg" id="modalMsg"></div></div>';
+
+  modal.classList.add('open');
+
+  document.getElementById('modalSave').onclick=()=>{
+    const vals={};
+
+    fields.forEach(f=>{
+      vals[f.key]=document.getElementById('mf_'+f.key).value;
+    });
+
+    const ok=onSave(vals);
+
+    if(ok!==false) closeModal();
+  };
+
+  setTimeout(()=>{
+    body.querySelector('input,select')?.focus();
+  },50);
+}
 function closeModal(){document.getElementById('modal').classList.remove('open');document.getElementById('modalSave').onclick=null;document.getElementById('modalSave').textContent='Save'}
 function askDelete(label,action){const modal=document.getElementById('modal'),body=document.getElementById('modalBody');document.getElementById('modalTitle').textContent='Delete '+label+'?';body.innerHTML='<div style="font-size:13px;color:var(--muted);line-height:1.5">This cannot be undone from the website. If you have a backup, you can restore it later.</div>';modal.classList.add('open');const btn=document.getElementById('modalSave');btn.textContent='Delete';btn.className='delete';btn.onclick=()=>{action();closeModal()}}
 function num(v){return Number(v)}
