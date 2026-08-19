@@ -996,30 +996,33 @@ function delNetHistory(i){askDelete('net worth snapshot',()=>{data.netHistory.sp
 
 function editPaycheck(){openForm('Set your paycheck',[{key:'amount',label:'Take-home paycheck amount',type:'number',value:data.payAllocator.lastPay},{key:'date',label:'Paycheck date',type:'text',value:data.payAllocator.date||new Date().toLocaleDateString('en-US')},{key:'frequency',label:'How often are you paid?',type:'select',options:['weekly','biweekly','twice-monthly','monthly','custom'],value:data.payAllocator.frequency},{key:'customPeriods',label:'Paychecks per year if custom',type:'number',value:data.payAllocator.customPeriods||26},{key:'source',label:'Account the paycheck lands in (optional)',type:'select',options:['__NONE__',...data.netAccounts.filter(a=>a.type==='asset').map(a=>a.id)],value:data.payAllocator.sourceAccountId||'__NONE__'}],v=>{let a=num(v.amount),cp=Math.max(1,Math.round(num(v.customPeriods)));if(!Number.isFinite(a)||a<0)return false;data.payAllocator.lastPay=a;data.payAllocator.date=v.date.trim();data.payAllocator.frequency=v.frequency;data.payAllocator.customPeriods=cp;data.payAllocator.sourceAccountId=v.source==='__NONE__'?'':v.source;save()})}
 function addAllocationRule(){
-  const assetAccounts=data.netAccounts.filter(a=>a.type==='asset');
+  const netAccounts=data.netAccounts.filter(a=>a.type==='asset');
+  const investmentAccounts=data.investments||[];
 
-  if(!assetAccounts.length && !data.investments.length){
-    alert('Add a Net Worth account or Investment account first.');
+  if(!netAccounts.length && !investmentAccounts.length){
+    alert('Add at least one Net Worth account or investment account first.');
     return;
   }
 
-  const accountOptions=assetAccounts.map(a=>a.id);
-  const investmentOptions=data.investments.map(x=>x.id);
+  const options=[
+    ...netAccounts.map(a=>({
+      id:'net:'+a.id,
+      label:'🏦 '+a.name
+    })),
+    ...investmentAccounts.map(a=>({
+      id:'inv:'+a.id,
+      label:'📈 '+a.name
+    }))
+  ];
 
   openForm('Add paycheck allocation',[
     {
-      key:'targetType',
+      key:'destination',
       label:'Where should the money go?',
       type:'select',
-      options:['account','investment'],
-      value:'account'
-    },
-    {
-      key:'accountId',
-      label:'Account / investment',
-      type:'select',
-      options:[...accountOptions,...investmentOptions],
-      value:accountOptions[0]||investmentOptions[0]
+      options:options.map(x=>x.id),
+      value:options[0].id,
+      displayLabels:options
     },
     {
       key:'mode',
@@ -1035,34 +1038,44 @@ function addAllocationRule(){
       value:'10'
     }
   ],v=>{
-    let val=num(v.value);
+    const val=num(v.value);
 
-    if(!Number.isFinite(val)||val<0)return false;
+    if(!Number.isFinite(val)||val<0){
+      return false;
+    }
 
     if(v.mode==='percent'&&val>100){
-      alert('A percentage cannot be greater than 100%.');
       return false;
     }
 
-    let target=allocationTarget(v.targetType,v.accountId);
+    const [type,id]=v.destination.split(':');
 
-    if(!target){
-      alert('Please select a valid destination.');
-      return false;
+    if(type==='net'){
+      const account=accountById(id);
+
+      if(!account){
+        alert('That account could not be found.');
+        return false;
+      }
+
+      if(data.payAllocator.sourceAccountId===account.id){
+        alert('Your deposit account cannot also be an allocation target.');
+        return false;
+      }
     }
 
-    if(
-      v.targetType==='account' &&
-      data.payAllocator.sourceAccountId===v.accountId
-    ){
-      alert('Your deposit account cannot also be an allocation target.');
-      return false;
+    if(type==='inv'){
+      const investment=data.investments.find(x=>String(x.id)===String(id));
+
+      if(!investment){
+        alert('That investment account could not be found.');
+        return false;
+      }
     }
 
     data.payAllocator.rules.push({
-      targetType:v.targetType,
-      accountId:v.targetType==='account'?v.accountId:'',
-      investmentId:v.targetType==='investment'?v.accountId:'',
+      destinationType:type,
+      destinationId:id,
       mode:v.mode,
       value:val
     });
