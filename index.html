@@ -433,7 +433,14 @@ function allocationTarget(type,id){
 
   return null;
 }
-function allocationTotal(){const pay=Number(data.payAllocator.lastPay||0);return data.payAllocator.rules.reduce((sum,r)=>sum+ruleAmount(r,pay),0)}
+function allocationTotal(){
+  const pay=Number(data.payAllocator.lastPay||0);
+
+  return data.payAllocator.rules.reduce(
+    (sum,r)=>sum+ruleAmount(r,pay),
+    0
+  );
+}
 function syncGoalsToAccounts(){data.goals.forEach(g=>{if(g.accountId){const a=accountById(g.accountId);if(a)g.current=Number(a.balance||0)}})}
 function allocationSummary(){const pay=Number(data.payAllocator.lastPay||0),total=allocationTotal();return {pay,total,left:Math.max(0,pay-total)}}
 function render(){
