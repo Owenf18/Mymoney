@@ -328,6 +328,41 @@ function accountById(id){
   if(!id || id==='__NONE__') return null;
   return data.netAccounts.find(a=>String(a.id)===String(id))||null;
 }
+
+function investmentById(id){
+  if(!id) return null;
+  return data.investments.find(x=>String(x.id)===String(id))||null;
+}
+
+function allocationTarget(type,id){
+  if(type==='investment'){
+    const investment=investmentById(id);
+
+    if(investment){
+      return {
+        type:'investment',
+        id:investment.id,
+        name:investment.name,
+        object:investment
+      };
+    }
+
+    return null;
+  }
+
+  const account=accountById(id);
+
+  if(account){
+    return {
+      type:'account',
+      id:account.id,
+      name:account.name,
+      object:account
+    };
+  }
+
+  return null;
+}
 function allocationTotal(){const pay=Number(data.payAllocator.lastPay||0);return data.payAllocator.rules.reduce((sum,r)=>sum+ruleAmount(r,pay),0)}
 function syncGoalsToAccounts(){data.goals.forEach(g=>{if(g.accountId){const a=accountById(g.accountId);if(a)g.current=Number(a.balance||0)}})}
 function allocationSummary(){const pay=Number(data.payAllocator.lastPay||0),total=allocationTotal();return {pay,total,left:Math.max(0,pay-total)}}
