@@ -1337,9 +1337,11 @@ function allocatePaycheck(){
         }
       ],
       v=>{
-        let a=num(v.amount);
+        const a=num(v.amount);
 
-        if(!Number.isFinite(a)||a<=0)return false;
+        if(!Number.isFinite(a)||a<=0){
+          return false;
+        }
 
         data.payAllocator.lastPay=a;
         data.payAllocator.date=v.date;
@@ -1352,35 +1354,45 @@ function allocatePaycheck(){
   }
 
   if(ps.total>ps.pay){
-    alert('Your allocation rules are larger than this paycheck. Reduce a rule before allocating.');
+    alert(
+      'Your allocation rules are larger than this paycheck. Reduce a rule before allocating.'
+    );
     return;
   }
 
-  const source=accountById(data.payAllocator.sourceAccountId);
-
-  if(data.payAllocator.sourceAccountId&&!source){
-    data.payAllocator.sourceAccountId='';
-  }
+  const source=accountById(
+    data.payAllocator.sourceAccountId
+  );
 
   const allocations=[];
 
   data.payAllocator.rules.forEach(r=>{
-    const amt=ruleAmount(r,ps.pay);
+    const amount=ruleAmount(r,ps.pay);
 
-    if(!amt||amt<=0)return;
+    if(!Number.isFinite(amount)||amount<=0){
+      return;
+    }
 
+    /*
+      NET WORTH ACCOUNT
+    */
     if(r.destinationType==='net'){
       const account=accountById(r.destinationId);
 
       if(account){
         allocations.push({
-          type:'net',
+          destinationType:'net',
+          destinationId:account.id,
+          name:account.name,
           account:account,
-          amount:amt
+          amount:amount
         });
       }
     }
 
+    /*
+      INVESTMENT ACCOUNT
+    */
     if(r.destinationType==='inv'){
       const investment=data.investments.find(
         x=>String(x.id)===String(r.destinationId)
@@ -1388,22 +1400,31 @@ function allocatePaycheck(){
 
       if(investment){
         allocations.push({
-          type:'investment',
+          destinationType:'inv',
+          destinationId:investment.id,
+          name:investment.name,
           account:investment,
-          amount:amt
+          amount:amount
         });
       }
     }
   });
 
+  /*
+    Make sure the deposit account isn't
+    also an allocation destination.
+  */
   if(
     allocations.some(
-      x=>source&&
-      x.type==='net'&&
-      x.account.id===source.id
+      x=>
+        x.destinationType==='net' &&
+        source &&
+        String(x.destinationId)===String(source.id)
     )
   ){
-    alert('Your deposit account cannot also be an allocation target. Choose a different target.');
+    alert(
+      'Your deposit account cannot also be an allocation target. Choose a different target.'
+    );
     return;
   }
 
@@ -1412,7 +1433,7 @@ function allocatePaycheck(){
     0
   );
 
-  if(!source&&total<ps.pay){
+  if(!source && total<ps.pay){
     alert(
       'You have money left over. Choose a deposit account so the remainder can stay there, or make your allocation rules add up to 100% of this paycheck.'
     );
@@ -1420,62 +1441,87 @@ function allocatePaycheck(){
   }
 
   /*
-    Put the leftover money into the paycheck's
-    deposit account.
+    Put the leftover paycheck money
+    into the deposit account.
   */
   if(source){
     source.balance=
-      Number(source.balance||0)+ps.pay-total;
+      Number(source.balance||0)+
+      (ps.pay-total);
   }
 
   /*
-    Send each allocation to its destination.
+    Actually add the allocated money
+    to each destination.
   */
   allocations.forEach(x=>{
-    if(x.type==='net'){
+
+    if(x.destinationType==='net'){
       x.account.balance=
-        Number(x.account.balance||0)+x.amount;
+        Number(x.account.balance||0)+
+        x.amount;
     }
 
-    if(x.type==='investment'){
+    if(x.destinationType==='inv'){
       x.account.balance=
-        Number(x.account.balance||0)+x.amount;
+        Number(x.account.balance||0)+
+        x.amount;
+
+      /*
+        Track the contribution too.
+      */
+      x.account.contribution=
+        Number(x.account.contribution||0)+
+        x.amount;
     }
   });
 
   /*
-    Add the main paycheck transaction.
+    Record the BIG paycheck.
   */
   data.transactions.push({
     date:data.payAllocator.date||
       new Date().toISOString().slice(0,10),
+
     name:'Paycheck',
+
     cat:'Income',
+
     amount:ps.pay,
+
     type:'income',
+
     accountId:source?source.id:''
   });
 
   /*
-    Add a transaction showing exactly where
-    each allocation went.
+    Record where the paycheck money went.
   */
   allocations.forEach(x=>{
-    const destinationName=x.account.name;
 
     data.transactions.push({
       date:data.payAllocator.date||
         new Date().toISOString().slice(0,10),
-      name:'Paycheck → '+destinationName,
-      cat:x.type==='investment'
+
+      name:'Paycheck → '+x.name,
+
+      cat:x.destinationType==='inv'
         ?'Investment'
         :'Savings',
+
       amount:x.amount,
+
       type:'transfer',
-      accountId:x.type==='net'
+
+      accountId:x.destinationType==='net'
+        ?x.account.id
+        :'',
+
+      investmentId:x.destinationType==='inv'
         ?x.account.id
         :''
     });
+
   });
 
   syncGoalsToAccounts();
@@ -1483,8 +1529,11 @@ function allocatePaycheck(){
   data.payAllocator.history.push({
     date:data.payAllocator.date||
       new Date().toLocaleDateString('en-US'),
+
     pay:ps.pay,
+
     total:total,
+
     rules:allocations.length
   });
 
