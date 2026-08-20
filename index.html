@@ -529,7 +529,47 @@ function render(){
   </table>`
   :
   '<div class="empty">No allocation rules yet. Add one for each account or savings space you want funded automatically.</div>';
- document.getElementById('allocationHistory').innerHTML=data.payAllocator.history.length?data.payAllocator.history.slice().reverse().map((h,ri)=>`<div class="transaction"><div><div class="tname">${esc(h.date||'Paycheck')}</div><div class="tcat">${money(h.pay)} allocated • ${h.rules} rules</div></div><div class="amount income">${money(h.total)}</div></div>`).join(''):'<div class="empty">No allocations yet. Your first paycheck will appear here.</div>';
+ document.getElementById('allocationHistory').innerHTML=
+  data.payAllocator.history.length
+  ?
+  data.payAllocator.history
+    .slice()
+    .reverse()
+    .map((h,ri)=>{
+
+      const originalIndex=
+        data.payAllocator.history.length-1-ri;
+
+      return `
+        <div class="transaction">
+
+          <div>
+            <div class="tname">
+              ${esc(h.date||'Paycheck')}
+            </div>
+
+            <div class="tcat">
+              ${money(h.pay)} paycheck • ${h.rules} allocations
+            </div>
+          </div>
+
+          <div class="amount income">
+            ${money(h.pay)}
+          </div>
+
+          <button
+            class="delete"
+            onclick="delPaycheckHistory(${originalIndex})"
+          >
+            Delete
+          </button>
+
+        </div>
+      `;
+    })
+    .join('')
+  :
+  '<div class="empty">No allocations yet. Your first paycheck will appear here.</div>';
 
  document.getElementById('nwAssets').textContent=money(netAssets());
  document.getElementById('nwDebts').textContent=money(netDebts());
