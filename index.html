@@ -1317,6 +1317,117 @@ function editAllocationRule(i){
   });
 }
 function delAllocationRule(i){askDelete('allocation rule',()=>{data.payAllocator.rules.splice(i,1);save()})}
+function delPaycheckHistory(i){
+  const h=data.payAllocator.history[i];
+
+  if(!h){
+    return;
+  }
+
+  askDelete('paycheck',()=>{
+
+    /*
+      Find the transactions belonging to this paycheck.
+      The paycheck itself and all of its allocation transactions
+      use the same date.
+    */
+    const paycheckDate=h.date||'';
+
+    const related=data.transactions.filter(t=>{
+      return (
+        t.date===paycheckDate &&
+        (
+          t.name==='Paycheck' ||
+          String(t.name||'').startsWith('Paycheck → ')
+        )
+      );
+    });
+
+    /*
+      Reverse every related transaction.
+    */
+    related.forEach(t=>{
+
+      /*
+        Regular paycheck deposited into a Net Worth account.
+      */
+      if(
+        t.name==='Paycheck' &&
+        t.accountId
+      ){
+        const account=accountById(t.accountId);
+
+        if(account){
+          account.balance=
+            Number(account.balance||0)-
+            Number(t.amount||0);
+        }
+      }
+
+      /*
+        Allocation sent to a Net Worth account.
+      */
+      if(
+        String(t.name||'').startsWith('Paycheck → ') &&
+        t.accountId
+      ){
+        const account=accountById(t.accountId);
+
+        if(account){
+          account.balance=
+            Number(account.balance||0)-
+            Number(t.amount||0);
+        }
+      }
+
+      /*
+        Allocation sent to an investment account.
+      */
+      if(
+        String(t.name||'').startsWith('Paycheck → ') &&
+        t.investmentId
+      ){
+        const investment=data.investments.find(
+          x=>String(x.id)===String(t.investmentId)
+        );
+
+        if(investment){
+          investment.balance=
+            Number(investment.balance||0)-
+            Number(t.amount||0);
+
+          investment.contribution=
+            Math.max(
+              0,
+              Number(investment.contribution||0)-
+              Number(t.amount||0)
+            );
+        }
+      }
+    });
+
+    /*
+      Remove the related transactions.
+    */
+    data.transactions=data.transactions.filter(t=>{
+      return !(
+        t.date===paycheckDate &&
+        (
+          t.name==='Paycheck' ||
+          String(t.name||'').startsWith('Paycheck → ')
+        )
+      );
+    });
+
+    /*
+      Remove the paycheck from Paycheck History.
+    */
+    data.payAllocator.history.splice(i,1);
+
+    syncGoalsToAccounts();
+    save();
+  });
+}
 function allocatePaycheck(){
   const ps=allocationSummary();
 
