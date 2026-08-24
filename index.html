@@ -1170,7 +1170,14 @@ function delNetAccount(i){askDelete('net worth account',()=>{data.netAccounts.sp
 function addNetHistory(){openForm('Record net worth snapshot',[{key:'date',label:'Month / date',value:new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'})},{key:'amount',label:'Net worth',type:'number',value:netWorth()}],v=>{let a=num(v.amount);if(!v.date.trim()||!Number.isFinite(a))return false;data.netHistory.push({date:v.date.trim(),amount:a});save()})}
 function delNetHistory(i){askDelete('net worth snapshot',()=>{data.netHistory.splice(i,1);save()})}
 
-function editPaycheck(){openForm('Set your paycheck',[{key:'amount',label:'Take-home paycheck amount',type:'number',value:data.payAllocator.lastPay},{key:'date',label:'Paycheck date',type:'text',value:data.payAllocator.date||new Date().toLocaleDateString('en-US')},{key:'frequency',label:'How often are you paid?',type:'select',options:['weekly','biweekly','twice-monthly','monthly','custom'],value:data.payAllocator.frequency},{key:'customPeriods',label:'Paychecks per year if custom',type:'number',value:data.payAllocator.customPeriods||26},{key:'source',label:'Account the paycheck lands in (optional)',type:'select',options:['__NONE__',...data.netAccounts.filter(a=>a.type==='asset').map(a=>a.id)],value:data.payAllocator.sourceAccountId||'__NONE__'}],v=>{let a=num(v.amount),cp=Math.max(1,Math.round(num(v.customPeriods)));if(!Number.isFinite(a)||a<0)return false;data.payAllocator.lastPay=a;data.payAllocator.date=v.date.trim();data.payAllocator.frequency=v.frequency;data.payAllocator.customPeriods=cp;data.payAllocator.sourceAccountId=v.source==='__NONE__'?'':v.source;save()})}
+function editPaycheck(){openForm('Set your paycheck',[{key:'amount',label:'Take-home paycheck amount',type:'number',value:data.payAllocator.lastPay},{
+  key:'date',
+  label:'Paycheck date',
+  type:'date',
+  value:data.payAllocator.date
+    ? normalizeTransactionDate(data.payAllocator.date)
+    : new Date().toISOString().slice(0,10)
+},{key:'frequency',label:'How often are you paid?',type:'select',options:['weekly','biweekly','twice-monthly','monthly','custom'],value:data.payAllocator.frequency},{key:'customPeriods',label:'Paychecks per year if custom',type:'number',value:data.payAllocator.customPeriods||26},{key:'source',label:'Account the paycheck lands in (optional)',type:'select',options:['__NONE__',...data.netAccounts.filter(a=>a.type==='asset').map(a=>a.id)],value:data.payAllocator.sourceAccountId||'__NONE__'}],v=>{let a=num(v.amount),cp=Math.max(1,Math.round(num(v.customPeriods)));if(!Number.isFinite(a)||a<0)return false;data.payAllocator.lastPay=a;data.payAllocator.date=v.date.trim();data.payAllocator.frequency=v.frequency;data.payAllocator.customPeriods=cp;data.payAllocator.sourceAccountId=v.source==='__NONE__'?'':v.source;save()})}
 function addAllocationRule(){
   const netAccounts=data.netAccounts.filter(a=>a.type==='asset');
   const investmentAccounts=data.investments||[];
