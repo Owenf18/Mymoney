@@ -1184,9 +1184,7 @@ function editPaycheck(){
         key:'date',
         label:'Paycheck date',
         type:'date',
-        value:data.payAllocator.date
-          ? normalizeTransactionDate(data.payAllocator.date)
-          : new Date().toISOString().slice(0,10)
+        value:new Date().toISOString().slice(0,10)
       },
       {
         key:'frequency',
