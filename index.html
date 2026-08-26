@@ -1170,101 +1170,69 @@ function delNetAccount(i){askDelete('net worth account',()=>{data.netAccounts.sp
 function addNetHistory(){openForm('Record net worth snapshot',[{key:'date',label:'Month / date',value:new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'})},{key:'amount',label:'Net worth',type:'number',value:netWorth()}],v=>{let a=num(v.amount);if(!v.date.trim()||!Number.isFinite(a))return false;data.netHistory.push({date:v.date.trim(),amount:a});save()})}
 function delNetHistory(i){askDelete('net worth snapshot',()=>{data.netHistory.splice(i,1);save()})}
 
-function editPaycheck(){openForm('Set your paycheck',[{key:'amount',label:'Take-home paycheck amount',type:'number',value:data.payAllocator.lastPay},{
-  key:'date',
-  label:'Paycheck date',
-  type:'date',
-  value:data.payAllocator.date
-    ? normalizeTransactionDate(data.payAllocator.date)
-    : new Date().toISOString().slice(0,10)
-},{key:'frequency',label:'How often are you paid?',type:'select',options:['weekly','biweekly','twice-monthly','monthly','custom'],value:data.payAllocator.frequency},{key:'customPeriods',label:'Paychecks per year if custom',type:'number',value:data.payAllocator.customPeriods||26},{key:'source',label:'Account the paycheck lands in (optional)',type:'select',options:['__NONE__',...data.netAccounts.filter(a=>a.type==='asset').map(a=>a.id)],value:data.payAllocator.sourceAccountId||'__NONE__'}],v=>{let a=num(v.amount),cp=Math.max(1,Math.round(num(v.customPeriods)));if(!Number.isFinite(a)||a<0)return false;data.payAllocator.lastPay=a;data.payAllocator.date=v.date.trim();data.payAllocator.frequency=v.frequency;data.payAllocator.customPeriods=cp;data.payAllocator.sourceAccountId=v.source==='__NONE__'?'':v.source;save()})}
-function addAllocationRule(){
-  const netAccounts=data.netAccounts.filter(a=>a.type==='asset');
-  const investmentAccounts=data.investments||[];
+function editPaycheck(){
+  openForm(
+    'Set your paycheck',
+    [
+      {
+        key:'amount',
+        label:'Take-home paycheck amount',
+        type:'number',
+        value:data.payAllocator.lastPay
+      },
+      {
+        key:'date',
+        label:'Paycheck date',
+        type:'date',
+        value:data.payAllocator.date
+          ? normalizeTransactionDate(data.payAllocator.date)
+          : new Date().toISOString().slice(0,10)
+      },
+      {
+        key:'frequency',
+        label:'How often are you paid?',
+        type:'select',
+        options:['weekly','biweekly','twice-monthly','monthly','custom'],
+        value:data.payAllocator.frequency
+      },
+      {
+        key:'customPeriods',
+        label:'Paychecks per year if custom',
+        type:'number',
+        value:data.payAllocator.customPeriods || 26
+      },
+      {
+        key:'source',
+        label:'Account the paycheck lands in (optional)',
+        type:'select',
+        options:[
+          '__NONE__',
+          ...data.netAccounts
+            .filter(a=>a.type==='asset')
+            .map(a=>a.id)
+        ],
+        value:data.payAllocator.sourceAccountId || '__NONE__'
+      }
+    ],
+    v=>{
+      let a=num(v.amount);
+      let cp=Math.max(1,Math.round(num(v.customPeriods)));
 
-  if(!netAccounts.length && !investmentAccounts.length){
-    alert('Add at least one Net Worth account or investment account first.');
-    return;
-  }
-
-  const options=[
-    ...netAccounts.map(a=>({
-      id:'net:'+a.id,
-      label:'🏦 '+a.name
-    })),
-    ...investmentAccounts.map(a=>({
-      id:'inv:'+a.id,
-      label:'📈 '+a.name
-    }))
-  ];
-
-  openForm('Add paycheck allocation',[
-    {
-      key:'destination',
-      label:'Where should the money go?',
-      type:'select',
-      options:options.map(x=>x.id),
-      value:options[0].id,
-      displayLabels:options
-    },
-    {
-      key:'mode',
-      label:'How should it be calculated?',
-      type:'select',
-      options:['percent','monthly'],
-      value:'percent'
-    },
-    {
-      key:'value',
-      label:'Percentage or monthly amount',
-      type:'number',
-      value:'10'
-    }
-  ],v=>{
-    const val=num(v.value);
-
-    if(!Number.isFinite(val)||val<0){
-      return false;
-    }
-
-    if(v.mode==='percent'&&val>100){
-      return false;
-    }
-
-    const [type,id]=v.destination.split(':');
-
-    if(type==='net'){
-      const account=accountById(id);
-
-      if(!account){
-        alert('That account could not be found.');
+      if(!Number.isFinite(a)||a<0){
+        alert('Please enter a valid paycheck amount.');
         return false;
       }
 
-      if(data.payAllocator.sourceAccountId===account.id){
-        alert('Your deposit account cannot also be an allocation target.');
-        return false;
-      }
+      data.payAllocator.lastPay=a;
+      data.payAllocator.date=v.date;
+      data.payAllocator.frequency=v.frequency;
+      data.payAllocator.customPeriods=cp;
+      data.payAllocator.sourceAccountId=
+        v.source==='__NONE__' ? '' : v.source;
+
+      save();
     }
-
-    if(type==='inv'){
-      const investment=data.investments.find(x=>String(x.id)===String(id));
-
-      if(!investment){
-        alert('That investment account could not be found.');
-        return false;
-      }
-    }
-
-    data.payAllocator.rules.push({
-      destinationType:type,
-      destinationId:id,
-      mode:v.mode,
-      value:val
-    });
-
-    save();
-  });
+  );
 }
 function editAllocationRule(i){
   const r=data.payAllocator.rules[i];
