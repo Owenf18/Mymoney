@@ -351,21 +351,54 @@ function normalizeData(){
   });
 }
 function save(){
+  // Always save locally first
   localStorage.setItem(KEY,JSON.stringify(data));
+
+  // Update the screen immediately
   render();
-  if(window.mymoneyUser){
-    clearTimeout(cloudSaveTimer);
-    cloudSaveTimer=setTimeout(()=>cloudSave(),350);
+
+  // Automatically save to the cloud
+  if(window.mymoneyUser && window.supabaseClient){
+    cloudSave();
+  }else{
+    setSync('Saved on this device');
   }
 }
+
 async function cloudSave(){
-  if(!window.mymoneyUser || !window.supabaseClient) return;
+  if(!window.mymoneyUser || !window.supabaseClient){
+    setSync('Saved on this device');
+    return;
+  }
+
   setSync('Saving…');
-  const {error}=await window.supabaseClient.from('mymoney_data').upsert(
-    {user_id:window.mymoneyUser.id,data:data,updated_at:new Date().toISOString()},
-    {onConflict:'user_id'}
-  );
-  setSync(error ? 'Sync error' : 'Saved to cloud');
+
+  try{
+    const {error}=await window.supabaseClient
+      .from('mymoney_data')
+      .upsert(
+        {
+          user_id:window.mymoneyUser.id,
+          data:data,
+          updated_at:new Date().toISOString()
+        },
+        {
+          onConflict:'user_id'
+        }
+      );
+
+    if(error){
+      console.error('Cloud save error:',error);
+      setSync('Sync error');
+      return;
+    }
+
+    setSync('Saved to cloud');
+
+  }catch(error){
+    console.error('Cloud save failed:',error);
+    setSync('Sync error');
+  }
 }
 function setSync(text){
   const el=document.getElementById('syncStatus');
