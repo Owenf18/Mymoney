@@ -1752,18 +1752,62 @@ async function resetPassword(){
 async function signOut(){ await window.supabaseClient.auth.signOut(); }
 async function loadCloudData(user){
   setSync('Checking cloud…');
-  const {data:row,error}=await window.supabaseClient.from('mymoney_data').select('data,updated_at').eq('user_id',user.id).maybeSingle();
-  if(error){setSync('Sync error');return;}
-  const localRaw=localStorage.getItem(KEY);
-  const localData=localRaw?JSON.parse(localRaw):null;
-  if(row && row.data){
-    if(localData && JSON.stringify(localData)!==JSON.stringify(row.data)){
-      const useCloud=confirm("A saved MyMoney account was found. Use the cloud copy on this device? Tap Cancel to keep this device's copy and upload it to your account.");
-      if(!useCloud){ data=localData; normalizeData(); await cloudSave(); return; }
+
+  try{
+    const {data:row,error}=await window.supabaseClient
+      .from('mymoney_data')
+      .select('data,updated_at')
+      .eq('user_id',user.id)
+      .maybeSingle();
+
+    if(error){
+      console.error('Cloud load error:',error);
+      setSync('Sync error');
+      return;
     }
-    data=row.data; normalizeData(); localStorage.setItem(KEY,JSON.stringify(data)); render(); setSync('Synced');
-  }else{
-    normalizeData(); await cloudSave(); setSync('Saved to cloud');
+
+    /*
+      If a cloud copy exists, always load it.
+      This makes Supabase the main source of truth
+      when the user is signed in.
+    */
+    if(row && row.data){
+
+      data=row.data;
+
+      normalizeData();
+      syncGoalsToAccounts();
+
+      localStorage.setItem(
+        KEY,
+        JSON.stringify(data)
+      );
+
+      render();
+
+      setSync('Synced');
+
+      return;
+    }
+
+    /*
+      No cloud data exists yet.
+      Save the current local data as the
+      user's first cloud backup.
+    */
+    normalizeData();
+    syncGoalsToAccounts();
+
+    localStorage.setItem(
+      KEY,
+      JSON.stringify(data)
+    );
+
+    await cloudSave();
+
+  }catch(error){
+    console.error('Cloud load failed:',error);
+    setSync('Sync error');
   }
 }
 function showSignedIn(user){
