@@ -474,7 +474,44 @@ function allocationTotal(){
     0
   );
 }
-function syncGoalsToAccounts(){data.goals.forEach(g=>{if(g.accountId){const a=accountById(g.accountId);if(a)g.current=Number(a.balance||0)}})}
+function syncGoalsToAccounts(){
+  /*
+    Goals are virtual allocations inside real accounts.
+
+    A goal's "current" amount is independent of the
+    account's total balance. We only make sure linked
+    goals have valid numeric values.
+
+    Example:
+
+    Main Savings = $5,000
+
+    Emergency = $2,500
+    House     = $1,500
+    Wedding   = $1,000
+
+    The three goals total $5,000, but none of them
+    automatically takes over the entire savings account.
+  */
+
+  data.goals.forEach(g=>{
+    if(typeof g.current!=='number' || !Number.isFinite(g.current)){
+      g.current=0;
+    }
+
+    if(typeof g.monthly!=='number' || !Number.isFinite(g.monthly)){
+      g.monthly=0;
+    }
+
+    if(typeof g.target!=='number' || !Number.isFinite(g.target)){
+      g.target=0;
+    }
+
+    if(!g.accountId){
+      g.accountId='';
+    }
+  });
+}
 function allocationSummary(){const pay=Number(data.payAllocator.lastPay||0),total=allocationTotal();return {pay,total,left:Math.max(0,pay-total)}}
 function render(){
  document.getElementById('dashIncome').textContent=money(income());
