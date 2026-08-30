@@ -273,6 +273,11 @@ function normalizeData(){
   if(!Array.isArray(data.netHistory)) data.netHistory=[];
   if(!Array.isArray(data.budget)) data.budget=[];
   if(!Array.isArray(data.goals)) data.goals=[];
+
+data.goals.forEach(g=>{
+  if(typeof g.monthly!=='number') g.monthly=0;
+  if(!g.accountId) g.accountId='';
+});
   if(!Array.isArray(data.transactions)) data.transactions=[];
   if(!Array.isArray(data.investments)) data.investments=[];
 
