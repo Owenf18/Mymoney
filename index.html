@@ -1306,18 +1306,12 @@ function addAllocationRule(){
   const netAccounts=data.netAccounts.filter(a=>a.type==='asset');
   const investmentAccounts=data.investments||[];
 
-  const options=[
-    ...netAccounts.map(a=>({
-      id:'net:'+a.id,
-      label:'🏦 '+a.name
-    })),
-    ...investmentAccounts.map(a=>({
-      id:'inv:'+a.id,
-      label:'📈 '+a.name
-    }))
+  const destinationOptions=[
+    ...netAccounts.map(a=>a.id),
+    ...investmentAccounts.map(a=>'inv:'+a.id)
   ];
 
-  if(!options.length){
+  if(!destinationOptions.length){
     alert('Add a Net Worth account or investment account first.');
     return;
   }
@@ -1327,9 +1321,8 @@ function addAllocationRule(){
       key:'destination',
       label:'Where should the money go?',
       type:'select',
-      options:options.map(x=>x.id),
-      value:options[0].id,
-      displayLabels:options
+      options:destinationOptions,
+      value:destinationOptions[0]
     },
     {
       key:'mode',
@@ -1342,15 +1335,11 @@ function addAllocationRule(){
       key:'value',
       label:'Percentage or monthly amount',
       type:'number',
-      value:'10'
+      value:10
     }
   ],v=>{
-    const val=num(v.value);
 
-    if(!v.destination){
-      alert('Please choose where the money should go.');
-      return false;
-    }
+    const val=num(v.value);
 
     if(!Number.isFinite(val)||val<0){
       alert('Please enter a valid amount.');
@@ -1362,10 +1351,27 @@ function addAllocationRule(){
       return false;
     }
 
-    const [type,id]=v.destination.split(':');
+    let destinationType;
+    let destinationId;
 
-    if(type==='net'){
-      const account=accountById(id);
+    if(String(v.destination).startsWith('inv:')){
+      destinationType='inv';
+      destinationId=String(v.destination).slice(4);
+
+      const investment=data.investments.find(
+        x=>String(x.id)===String(destinationId)
+      );
+
+      if(!investment){
+        alert('That investment account could not be found.');
+        return false;
+      }
+
+    }else{
+      destinationType='net';
+      destinationId=v.destination;
+
+      const account=accountById(destinationId);
 
       if(!account){
         alert('That account could not be found.');
@@ -1378,20 +1384,9 @@ function addAllocationRule(){
       }
     }
 
-    if(type==='inv'){
-      const investment=data.investments.find(
-        x=>String(x.id)===String(id)
-      );
-
-      if(!investment){
-        alert('That investment account could not be found.');
-        return false;
-      }
-    }
-
     data.payAllocator.rules.push({
-      destinationType:type,
-      destinationId:id,
+      destinationType:destinationType,
+      destinationId:destinationId,
       mode:v.mode,
       value:val
     });
