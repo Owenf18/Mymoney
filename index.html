@@ -1302,7 +1302,104 @@ function editPaycheck(){
     }
   );
 }
-function editAllocationRule(i){
+function addAllocationRule(){
+  const netAccounts=data.netAccounts.filter(a=>a.type==='asset');
+  const investmentAccounts=data.investments||[];
+
+  const options=[
+    ...netAccounts.map(a=>({
+      id:'net:'+a.id,
+      label:'🏦 '+a.name
+    })),
+    ...investmentAccounts.map(a=>({
+      id:'inv:'+a.id,
+      label:'📈 '+a.name
+    }))
+  ];
+
+  if(!options.length){
+    alert('Add a Net Worth account or investment account first.');
+    return;
+  }
+
+  openForm('Add paycheck allocation',[
+    {
+      key:'destination',
+      label:'Where should the money go?',
+      type:'select',
+      options:options.map(x=>x.id),
+      value:options[0].id,
+      displayLabels:options
+    },
+    {
+      key:'mode',
+      label:'How should it be calculated?',
+      type:'select',
+      options:['percent','monthly'],
+      value:'percent'
+    },
+    {
+      key:'value',
+      label:'Percentage or monthly amount',
+      type:'number',
+      value:'10'
+    }
+  ],v=>{
+    const val=num(v.value);
+
+    if(!v.destination){
+      alert('Please choose where the money should go.');
+      return false;
+    }
+
+    if(!Number.isFinite(val)||val<0){
+      alert('Please enter a valid amount.');
+      return false;
+    }
+
+    if(v.mode==='percent'&&val>100){
+      alert('Percentage cannot be greater than 100%.');
+      return false;
+    }
+
+    const [type,id]=v.destination.split(':');
+
+    if(type==='net'){
+      const account=accountById(id);
+
+      if(!account){
+        alert('That account could not be found.');
+        return false;
+      }
+
+      if(data.payAllocator.sourceAccountId===account.id){
+        alert('Your deposit account cannot also be an allocation target.');
+        return false;
+      }
+    }
+
+    if(type==='inv'){
+      const investment=data.investments.find(
+        x=>String(x.id)===String(id)
+      );
+
+      if(!investment){
+        alert('That investment account could not be found.');
+        return false;
+      }
+    }
+
+    data.payAllocator.rules.push({
+      destinationType:type,
+      destinationId:id,
+      mode:v.mode,
+      value:val
+    });
+
+    save();
+  });
+}
+  function editAllocationRule(i){
   const r=data.payAllocator.rules[i];
 
   const netAccounts=data.netAccounts.filter(a=>a.type==='asset');
