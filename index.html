@@ -479,55 +479,7 @@ function allocationTotal(){
     0
   );
 }
-function syncGoalsToAccounts(){
-/*
-Savings goals are independent from Net Worth account balances.
-
-```
-The goal's "current" amount is the amount currently
-earmarked for that goal.
-
-The monthly contribution is added once per calendar month.
-Refreshing the app will NOT add it again.
-```
-
-*/
-
-const now = new Date();
-const currentMonth =
-now.getFullYear() + '-' +
-String(now.getMonth()+1).padStart(2,'0');
-
-data.goals.forEach(g=>{
-
-```
-if(typeof g.current!=='number' || !Number.isFinite(g.current)){
-  g.current=0;
-}
-
-if(typeof g.monthly!=='number' || !Number.isFinite(g.monthly)){
-  g.monthly=0;
-}
-
-/*
-  Only apply the monthly contribution once
-  for each calendar month.
-*/
-if(g.lastContributionMonth!==currentMonth){
-
-  const contribution=Math.max(0,Number(g.monthly||0));
-
-  if(contribution>0){
-    g.current+=contribution;
-  }
-
-  g.lastContributionMonth=currentMonth;
-}
-```
-
-});
-}
-
+function syncGoalsToAccounts(){}
 function allocationSummary(){const pay=Number(data.payAllocator.lastPay||0),total=allocationTotal();return {pay,total,left:Math.max(0,pay-total)}}
 function render(){
  document.getElementById('dashIncome').textContent=money(income());
