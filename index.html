@@ -2069,65 +2069,79 @@ async function resetPassword(){
 }
 async function signOut(){ await window.supabaseClient.auth.signOut(); }
 async function loadCloudData(user){
-  setSync('Checking cloud…');
+setSync('Checking cloud…');
 
-  try{
-    const {data:row,error}=await window.supabaseClient
-      .from('mymoney_data')
-      .select('data,updated_at')
-      .eq('user_id',user.id)
-      .maybeSingle();
+const {data:row,error}=await window.supabaseClient
+.from('mymoney_data')
+.select('data,updated_at')
+.eq('user_id',user.id)
+.maybeSingle();
 
-    if(error){
-      console.error('Cloud load error:',error);
-      setSync('Sync error');
-      return;
-    }
-
-    /*
-      If a cloud copy exists, always load it.
-      This makes Supabase the main source of truth
-      when the user is signed in.
-    */
-    if(row && row.data){
-
-      data=row.data;
-
-      normalizeData();
-      syncGoalsToAccounts();
-
-      localStorage.setItem(
-        KEY,
-        JSON.stringify(data)
-      );
-
-      render();
-
-      setSync('Synced');
-
-      return;
-    }
-
-    /*
-      No cloud data exists yet.
-      Save the current local data as the
-      user's first cloud backup.
-    */
-    normalizeData();
-    syncGoalsToAccounts();
-
-    localStorage.setItem(
-      KEY,
-      JSON.stringify(data)
-    );
-
-    await cloudSave();
-
-  }catch(error){
-    console.error('Cloud load failed:',error);
-    setSync('Sync error');
-  }
+if(error){
+setSync('Sync error');
+return;
 }
+
+const localRaw=localStorage.getItem(KEY);
+const localData=localRaw?JSON.parse(localRaw):null;
+
+if(row && row.data){
+
+```
+/*
+  If this device already has saved data and it differs
+  from the cloud copy, keep the device copy.
+
+  This prevents an older cloud copy from silently
+  overwriting newer changes made on this device.
+*/
+if(localData){
+  data=localData;
+  normalizeData();
+
+  localStorage.setItem(KEY,JSON.stringify(data));
+
+  await cloudSave();
+
+  render();
+  setSync('Synced');
+
+  return;
+}
+
+/*
+  No local data exists, so this is a new device.
+  In that case, use the cloud copy.
+*/
+data=row.data;
+normalizeData();
+
+localStorage.setItem(KEY,JSON.stringify(data));
+
+render();
+setSync('Synced');
+```
+
+}else{
+
+```
+/*
+  No cloud copy exists.
+  Save the current local data to the cloud.
+*/
+normalizeData();
+
+localStorage.setItem(KEY,JSON.stringify(data));
+
+await cloudSave();
+
+render();
+setSync('Saved to cloud');
+```
+
+}
+}
+
 function showSignedIn(user){
   window.mymoneyUser=user;
   document.getElementById('authOverlay').style.display='none';
