@@ -1635,8 +1635,12 @@ function allocatePaycheck(){
     [...data.payAllocator.rules].forEach(r=>{
       if(remaining<=0)return;
 
-      const a=accountById(r.accountId);
-      if(!a)return;
+      const target=
+  r.destinationType==='inv'
+    ? investmentById(r.destinationId)
+    : accountById(r.accountId||r.destinationId);
+
+if(!target)return;
 
       let needed=0;
 
@@ -1651,14 +1655,16 @@ function allocatePaycheck(){
       const amount=Math.min(remaining,needed);
 
       if(amount>0){
-        allocations.push({
-          account:a,
-          accountId:a.id,
-          amount
-        });
+  allocations.push({
+    account:r.destinationType==='inv'?null:target,
+    investment:r.destinationType==='inv'?target:null,
+    accountId:r.destinationType==='inv'?'':target.id,
+    investmentId:r.destinationType==='inv'?target.id:'',
+    amount
+  });
 
-        remaining-=amount;
-      }
+  remaining-=amount;
+}
     });
 
     /*
