@@ -431,7 +431,12 @@ function netWorth(){return netAssets()-netDebts()}
 function netSavings(){return data.netAccounts.filter(x=>x.type==='asset' && x.category==='Savings').reduce((a,x)=>a+Number(x.balance||0),0)}
 
 function periodsPerYear(){const f=data.payAllocator.frequency;if(f==='weekly')return 52;if(f==='biweekly')return 26;if(f==='twice-monthly')return 24;if(f==='monthly')return 12;return Math.max(1,Number(data.payAllocator.customPeriods)||26)}
-function ruleAmount(rule,pay){if(rule.mode==='percent')return Math.max(0,pay*Number(rule.value||0)/100);return Math.max(0,Number(rule.value||0)*12/periodsPerYear())}
+function ruleAmount(rule,pay){
+  if(rule.mode==='percent'){
+    return Math.max(0,pay*Number(rule.value||0)/100);
+  }
+  return Math.max(0,Number(rule.value||0));
+}
 function accountById(id){
   if(!id || id==='__NONE__') return null;
   return data.netAccounts.find(a=>String(a.id)===String(id))||null;
