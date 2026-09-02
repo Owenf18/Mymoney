@@ -1619,7 +1619,7 @@ function allocatePaycheck(){
     let remaining=pay;
     const allocations=[];
 
-    data.payAllocator.rules.forEach(r=>{
+    [...data.payAllocator.rules].forEach(r=>{
       if(remaining<=0)return;
 
       const a=accountById(r.accountId);
