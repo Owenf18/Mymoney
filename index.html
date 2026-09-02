@@ -1646,7 +1646,7 @@ function allocatePaycheck(){
       }
     });
 
-    data.goals.forEach(g=>{
+   [...data.goals].sort((a,b)=>Number(a.priority||999)-Number(b.priority||999)).forEach(g=>{
   if(remaining<=0)return;
 
   const target=Math.max(0,Number(g.target||0));
