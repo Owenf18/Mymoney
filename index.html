@@ -1646,24 +1646,35 @@ function allocatePaycheck(){
     });
 
     data.goals.forEach(g=>{
-      if(remaining<=0)return;
+  if(remaining<=0)return;
 
-      const target=Math.max(0,Number(g.target||0));
-      const current=Math.max(0,Number(g.current||0));
-      const needed=Math.max(0,target-current);
-      const amount=Math.min(remaining,needed);
+  const target=Math.max(0,Number(g.target||0));
+  const current=Math.max(0,Number(g.current||0));
+  const needed=Math.max(0,target-current);
+  const amount=Math.min(remaining,needed);
 
-      if(amount>0){
-        g.current=current+amount;
-        remaining-=amount;
+  if(amount>0){
+    const linkedAccount=g.accountId?accountById(g.accountId):null;
 
-        allocations.push({
-          accountId:g.accountId||'',
-          goalId:g.name,
-          amount
-        });
-      }
+    if(linkedAccount&&linkedAccount.id===data.payAllocator.sourceAccountId){
+      alert('The savings goal "'+g.name+'" is linked to your paycheck deposit account. Choose a different linked account before allocating.');
+      return;
+    }
+
+    g.current=current+amount;
+    remaining-=amount;
+
+    if(linkedAccount){
+      linkedAccount.balance=Number(linkedAccount.balance||0)+amount;
+    }
+
+    allocations.push({
+      accountId:linkedAccount?linkedAccount.id:'',
+      goalId:g.name,
+      amount
     });
+  }
+});
 
     const source=accountById(data.payAllocator.sourceAccountId);
 
