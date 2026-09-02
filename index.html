@@ -495,11 +495,17 @@ function allocationTarget(type,id){
 }
 function allocationTotal(){
   const pay=Number(data.payAllocator.lastPay||0);
+  const date=data.payAllocator.date||new Date().toISOString().slice(0,10);
 
-  return data.payAllocator.rules.reduce(
-    (sum,r)=>sum+ruleAmount(r,pay),
-    0
-  );
+  return data.payAllocator.rules.reduce((sum,r)=>{
+    if(r.mode==='monthly'){
+      const monthlyTarget=Math.max(0,Number(r.value||0));
+      const alreadyAllocated=monthlyAllocatedToAccount(r.accountId,date);
+      return sum+Math.max(0,monthlyTarget-alreadyAllocated);
+    }
+
+    return sum+ruleAmount(r,pay);
+  },0);
 }
 function syncGoalsToAccounts(){}
 function allocationSummary(){const pay=Number(data.payAllocator.lastPay||0),total=allocationTotal();return {pay,total,left:Math.max(0,pay-total)}}
