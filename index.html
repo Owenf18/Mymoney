@@ -441,7 +441,24 @@ function accountById(id){
   if(!id || id==='__NONE__') return null;
   return data.netAccounts.find(a=>String(a.id)===String(id))||null;
 }
+function monthKey(date){
+  const d=new Date(date);
+  if(Number.isNaN(d.getTime()))return '';
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
 
+function monthlyAllocatedToAccount(accountId,date){
+  const month=monthKey(date);
+  if(!month)return 0;
+
+  return data.payAllocator.history.reduce((sum,h)=>{
+    if(monthKey(h.date)!==month||!Array.isArray(h.allocations))return sum;
+
+    return sum+h.allocations.reduce((accountSum,x)=>{
+      return accountSum+(x.accountId===accountId?Number(x.amount||0):0);
+    },0);
+  },0);
+}
 function investmentById(id){
   if(!id) return null;
   return data.investments.find(x=>String(x.id)===String(id))||null;
