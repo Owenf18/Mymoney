@@ -444,8 +444,18 @@ function accountById(id){
   return data.netAccounts.find(a=>String(a.id)===String(id))||null;
 }
 function monthKey(date){
+  if(!date)return '';
+
+  const parts=String(date).split('-');
+
+  if(parts.length>=2){
+    return parts[0]+'-'+parts[1];
+  }
+
   const d=new Date(date);
+
   if(Number.isNaN(d.getTime()))return '';
+
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
 }
 
@@ -454,7 +464,7 @@ function monthlyAllocatedToAccount(accountId,date){
   if(!month)return 0;
 
   return data.payAllocator.history.reduce((sum,h)=>{
-    if(monthKey(h.date)!==month||!Array.isArray(h.allocations))return sum;
+    if(monthKey(h.date)!==month||!Array.isArray(h.allocations)||!h.pay)return sum;
 
     return sum+h.allocations.reduce((accountSum,x)=>{
       return accountSum+(x.accountId===accountId?Number(x.amount||0):0);
