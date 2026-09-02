@@ -274,9 +274,10 @@ function normalizeData(){
   if(!Array.isArray(data.budget)) data.budget=[];
   if(!Array.isArray(data.goals)) data.goals=[];
 
-data.goals.forEach(g=>{
+data.goals.forEach((g,i)=>{
   if(typeof g.monthly!=='number') g.monthly=0;
   if(!g.accountId) g.accountId='';
+  if(typeof g.priority!=='number') g.priority=i+1;
 });
   if(!Array.isArray(data.transactions)) data.transactions=[];
   if(!Array.isArray(data.investments)) data.investments=[];
