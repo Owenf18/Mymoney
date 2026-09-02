@@ -348,14 +348,15 @@ data.goals.forEach((g,i)=>{
     Convert old paycheck allocation rules
     to the new Net Worth / Investment format.
   */
-  data.payAllocator.rules.forEach(r=>{
-    if(!r.destinationType&&r.accountId){
-      r.destinationType='net';
-      r.destinationId=r.accountId;
-      delete r.accountId;
-    }
-  });
-}
+ data.payAllocator.rules.forEach(r=>{
+  if(!r.accountId&&r.destinationId){
+    r.accountId=r.destinationId;
+  }
+
+  if(!r.destinationType){
+    r.destinationType='net';
+  }
+});
 function save(){
   // Always save locally first
   localStorage.setItem(KEY,JSON.stringify(data));
