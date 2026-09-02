@@ -1612,6 +1612,7 @@ function delPaycheckHistory(i){
     save();
   });
 }
+```javascript
 function allocatePaycheck(){
   openForm('Allocate a paycheck',[
     {key:'amount',label:'Take-home paycheck amount',type:'number',value:data.payAllocator.lastPay||''},
@@ -1623,12 +1624,14 @@ function allocatePaycheck(){
     if(!Number.isFinite(pay)||pay<=0)return false;
     if(!date)return false;
 
-    data.payAllocator.lastPay=pay;
-    data.payAllocator.date=date;
+    const source=accountById(data.payAllocator.sourceAccountId);
 
     let remaining=pay;
     const allocations=[];
 
+    /*
+      Work through paycheck rules in their saved order.
+    */
     [...data.payAllocator.rules].forEach(r=>{
       if(remaining<=0)return;
 
@@ -1653,57 +1656,88 @@ function allocatePaycheck(){
           accountId:a.id,
           amount
         });
+
         remaining-=amount;
       }
     });
 
-   [...data.goals].sort((a,b)=>Number(a.priority||999)-Number(b.priority||999)).forEach(g=>{
-  if(remaining<=0)return;
+    /*
+      Savings goals are the second waterfall.
+      Lower priority number = funded first.
+    */
+    [...data.goals]
+      .sort((a,b)=>Number(a.priority||999)-Number(b.priority||999))
+      .forEach(g=>{
+        if(remaining<=0)return;
 
-  const target=Math.max(0,Number(g.target||0));
-  const current=Math.max(0,Number(g.current||0));
-  const needed=Math.max(0,target-current);
-  const amount=Math.min(remaining,needed);
+        const target=Math.max(0,Number(g.target||0));
+        const current=Math.max(0,Number(g.current||0));
+        const needed=Math.max(0,target-current);
+        const amount=Math.min(remaining,needed);
 
-  if(amount>0){
-    const linkedAccount=g.accountId?accountById(g.accountId):null;
+        if(amount<=0)return;
 
-    if(linkedAccount&&linkedAccount.id===data.payAllocator.sourceAccountId){
-      alert('The savings goal "'+g.name+'" is linked to your paycheck deposit account. Choose a different linked account before allocating.');
+        const linkedAccount=g.accountId?accountById(g.accountId):null;
+
+        if(linkedAccount&&linkedAccount.id===data.payAllocator.sourceAccountId){
+          alert(
+            'The savings goal "'+g.name+
+            '" is linked to your paycheck deposit account. '+
+            'Choose a different linked account before allocating.'
+          );
+          return;
+        }
+
+        g.current=current+amount;
+        remaining-=amount;
+
+        if(linkedAccount){
+          linkedAccount.balance=
+            Number(linkedAccount.balance||0)+amount;
+        }
+
+        allocations.push({
+          accountId:linkedAccount?linkedAccount.id:'',
+          goalId:g.name,
+          amount
+        });
+      });
+
+    /*
+      Any money left after monthly contributions
+      and savings goals goes to the paycheck deposit account.
+    */
+    if(remaining>0&&!source){
+      alert(
+        'Your monthly contributions and savings goals are full, '+
+        'but you still have '+money(remaining)+' left. '+
+        'Choose a deposit account for leftover money.'
+      );
       return;
     }
 
-    g.current=current+amount;
-    remaining-=amount;
-
-    if(linkedAccount){
-      linkedAccount.balance=Number(linkedAccount.balance||0)+amount;
-    }
-
-    allocations.push({
-      accountId:linkedAccount?linkedAccount.id:'',
-      goalId:g.name,
-      amount
-    });
-  }
-});
-
-    const source=accountById(data.payAllocator.sourceAccountId);
-
-    if(source){
-      source.balance=Number(source.balance||0)+remaining;
-    }else if(remaining>0){
-      alert('Your monthly contributions and savings goals are full, but you still have '+money(remaining)+' left. Choose a deposit account for leftover money.');
-      return;
-    }
-
+    /*
+      Apply Net Worth account allocations.
+    */
     allocations.forEach(x=>{
       if(x.account){
-        x.account.balance=Number(x.account.balance||0)+x.amount;
+        x.account.balance=
+          Number(x.account.balance||0)+x.amount;
       }
     });
 
+    /*
+      Put leftover money into the source/deposit account.
+    */
+    if(source&&remaining>0){
+      source.balance=
+        Number(source.balance||0)+remaining;
+    }
+
     const total=pay-remaining;
+
+    data.payAllocator.lastPay=pay;
+    data.payAllocator.date=date;
 
     data.transactions.push({
       date:date,
@@ -1729,12 +1763,14 @@ function allocatePaycheck(){
     save();
 
     alert(
-      'Paycheck allocated successfully.\\n\\n'+
-      money(total)+' was allocated.\\n'+
+      'Paycheck allocated successfully.\n\n'+
+      money(total)+' was allocated.\n'+
       money(remaining)+' remained.'
     );
   });
 }
+```
+
 const SUPABASE_URL='https://dgoqhwnuwwtojhnocarw.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_ioS5A18woXeM4m3mok_JPQ_dzhOH7l0';
 
