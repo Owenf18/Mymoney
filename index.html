@@ -1844,7 +1844,7 @@ const localData=localRaw?JSON.parse(localRaw):null;
 
 if(row && row.data){
 
-```
+
 /*
   If this device already has saved data and it differs
   from the cloud copy, keep the device copy.
@@ -1877,11 +1877,11 @@ localStorage.setItem(KEY,JSON.stringify(data));
 
 render();
 setSync('Synced');
-```
+
 
 }else{
 
-```
+
 /*
   No cloud copy exists.
   Save the current local data to the cloud.
@@ -1894,7 +1894,7 @@ await cloudSave();
 
 render();
 setSync('Saved to cloud');
-```
+
 
 }
 }
