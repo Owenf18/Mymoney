@@ -1727,11 +1727,19 @@ if(!target)return;
       Apply Net Worth account allocations.
     */
     allocations.forEach(x=>{
-      if(x.account){
-        x.account.balance=
-          Number(x.account.balance||0)+x.amount;
-      }
-    });
+  if(x.account){
+    x.account.balance=
+      Number(x.account.balance||0)+x.amount;
+  }
+
+  if(x.investment){
+    x.investment.balance=
+      Number(x.investment.balance||0)+x.amount;
+
+    x.investment.contribution=
+      Number(x.investment.contribution||0)+x.amount;
+  }
+});
 
     /*
       Put leftover money into the source/deposit account.
