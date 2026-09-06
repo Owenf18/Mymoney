@@ -1317,12 +1317,18 @@ function addAllocationRule(){
   const netAccounts=data.netAccounts.filter(a=>a.type==='asset');
   const investmentAccounts=data.investments||[];
 
-  const destinationOptions=[
-    ...netAccounts.map(a=>a.id),
-    ...investmentAccounts.map(a=>'inv:'+a.id)
+  const options=[
+    ...netAccounts.map(a=>({
+      id:a.id,
+      label:'🏦 '+a.name
+    })),
+    ...investmentAccounts.map(a=>({
+      id:'inv:'+a.id,
+      label:'📈 '+a.name
+    }))
   ];
 
-  if(!destinationOptions.length){
+  if(!options.length){
     alert('Add a Net Worth account or investment account first.');
     return;
   }
@@ -1332,8 +1338,9 @@ function addAllocationRule(){
       key:'destination',
       label:'Where should the money go?',
       type:'select',
-      options:destinationOptions,
-      value:destinationOptions[0]
+      options:options.map(x=>x.id),
+      value:options[0].id,
+      displayLabels:options
     },
     {
       key:'mode',
