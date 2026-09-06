@@ -1921,9 +1921,17 @@ function showSignedOut(){
   document.getElementById('accountBar').style.display='none';
   setSync('Sign in required');
 }
-window.supabaseClient.auth.onAuthStateChange((_event,session)=>{
-  if(session?.user) showSignedIn(session.user); else showSignedOut();
-});
+if(window.supabaseClient){
+  window.supabaseClient.auth.onAuthStateChange((_event,session)=>{
+    if(session?.user){
+      showSignedIn(session.user);
+    }else{
+      showSignedOut();
+    }
+  });
+}else{
+  showSignedOut();
+}
 
 function calcTax(){data.tax.income=Number(document.getElementById('taxIncome').value||0);data.tax.withheld=Number(document.getElementById('taxWithheld').value||0);data.tax.deduct=Number(document.getElementById('taxDeduct').value||0);let r=taxCalc();document.getElementById('taxResult').textContent=money(r);document.getElementById('dashTax').textContent=money(r);document.getElementById('taxExplanation').textContent=r>=0?'Estimated refund based on this simplified model.':'Estimated amount owed based on this simplified model.';localStorage.setItem(KEY,JSON.stringify(data))}
 render();
