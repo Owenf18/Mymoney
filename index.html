@@ -1780,10 +1780,18 @@ if(!target)return;
 const SUPABASE_URL='https://dgoqhwnuwwtojhnocarw.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_ioS5A18woXeM4m3mok_JPQ_dzhOH7l0';
 
-window.supabaseClient=window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_PUBLISHABLE_KEY
-);
+window.supabaseClient=null;
+
+try{
+  if(window.supabase){
+    window.supabaseClient=window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY
+    );
+  }
+}catch(err){
+  console.error('Supabase initialization failed:',err);
+}
 
 window.mymoneyUser=null;
 let authSignUpMode=false;
