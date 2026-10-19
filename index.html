@@ -1823,24 +1823,77 @@ function toggleAuthMode(){
   document.getElementById('authToggle').textContent=authSignUpMode?'Already have an account? Sign in':'Create an account';
   showAuthMessage('');
 }
-async function submitAuth(){
-  const email=document.getElementById('authEmail').value.trim();
-  const password=document.getElementById('authPassword').value;
-  if(!email||password.length<6){showAuthMessage('Enter a valid email and a password with at least 6 characters.');return;}
-  showAuthMessage('');
-  const btn=document.querySelector('.auth-primary'); btn.disabled=true; btn.textContent='Working…';
-  let result;
-  if(authSignUpMode){
-    result=await window.supabaseClient.auth.signUp({email,password});
-    if(!result.error && !result.data.session){
-      showAuthMessage('Account created. Check your email to confirm your account, then sign in.');
-    }
-  }else{
-    result=await window.supabaseClient.auth.signInWithPassword({email,password});
+
+async function submitAuth() {
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const btn = document.querySelector('.auth-primary');
+
+  if (!email || password.length < 6) {
+    showAuthMessage(
+      'Enter a valid email and a password with at least 6 characters.'
+    );
+    return;
   }
-  btn.disabled=false; btn.textContent=authSignUpMode?'Create account':'Sign in';
-  if(result.error) showAuthMessage(result.error.message);
+
+  if (!window.supabaseClient) {
+    showAuthMessage(
+      'Supabase did not initialize. Check the Supabase URL, API key, and library.'
+    );
+    return;
+  }
+
+  showAuthMessage('');
+  btn.disabled = true;
+  btn.textContent = 'Connecting…';
+
+  try {
+    let result;
+
+    if (authSignUpMode) {
+      result = await window.supabaseClient.auth.signUp({
+        email,
+        password
+      });
+    } else {
+      result = await window.supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      });
+    }
+
+    if (result.error) {
+      console.error('Supabase authentication error:', result.error);
+      showAuthMessage(result.error.message);
+      return;
+    }
+
+    if (
+      authSignUpMode &&
+      result.data &&
+      !result.data.session
+    ) {
+      showAuthMessage(
+        'Account created. Check your email to confirm your account, then sign in.'
+      );
+    }
+  } catch (err) {
+    console.error('Authentication request failed:', err);
+
+    showAuthMessage(
+      err && err.message
+        ? 'Connection failed: ' + err.message +
+          '. Check your Supabase project URL, API key, and internet connection.'
+        : 'Could not connect to Supabase. Check your configuration and internet connection.'
+    );
+  } finally {
+    btn.disabled = false;
+    btn.textContent = authSignUpMode
+      ? 'Create account'
+      : 'Sign in';
+  }
 }
+
 async function resetPassword(){
   const email=document.getElementById('authEmail').value.trim();
   if(!email){showAuthMessage('Enter your email first, then tap Forgot password again.');return;}
