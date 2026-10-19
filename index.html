@@ -1959,86 +1959,100 @@ async function resetPassword(){
   showAuthMessage(error?error.message:'Password reset email sent. Check your inbox.');
 }
 async function signOut(){ await window.supabaseClient.auth.signOut(); }
-async function loadCloudData(user){
-setSync('Checking cloud…');
+async function loadCloudData(user) {
+  setSync('Loading cloud…');
 
-const {data:row,error}=await window.supabaseClient
-.from('mymoney_data')
-.select('data,updated_at')
-.eq('user_id',user.id)
-.maybeSingle();
+  try {
+    const { data: row, error } = await window.supabaseClient
+      .from('mymoney_data')
+      .select('data,updated_at')
+      .eq('user_id', user.id)
+      .maybeSingle();
 
-if(error){
-setSync('Sync error');
-return;
-}
+    if (error) {
+      console.error('Cloud load failed:', error);
+      setSync('Cloud load failed — data protected');
+      alert(
+        'MyMoney could not load your cloud data. ' +
+        'It has not intentionally overwritten your cloud record. ' +
+        'Check your connection and try again.'
+      );
+      return false;
+    }
 
-const localRaw=localStorage.getItem(KEY);
-const localData=localRaw?JSON.parse(localRaw):null;
+    // If a cloud row exists, cloud data wins.
+    // Never replace it with a browser copy during sign-in.
+    if (row) {
+      if (
+        !row.data ||
+        typeof row.data !== 'object' ||
+        Array.isArray(row.data) ||
+        Object.keys(row.data).length === 0
+      ) {
+        console.error('Cloud record is empty or invalid:', row);
+        setSync('Cloud data needs checking');
+        alert(
+          'MyMoney found a cloud record that appears empty or invalid. ' +
+          'It has not replaced that record. Please check the database.'
+        );
+        return false;
+      }
 
-if(row && row.data){
+      data = row.data;
+      normalizeData();
 
+      try {
+        localStorage.setItem(KEY, JSON.stringify(data));
+      } catch (err) {
+        console.warn('Could not update local cache:', err);
+      }
 
-/*
-  If this device already has saved data and it differs
-  from the cloud copy, keep the device copy.
+      render();
+      setSync('Loaded from cloud');
+      return true;
+    }
 
-  This prevents an older cloud copy from silently
-  overwriting newer changes made on this device.
-*/
-if(localData){
-  data=localData;
-  normalizeData();
+    // Only if no cloud row exists may local data initialize the account.
+    let localData = null;
 
-  localStorage.setItem(KEY,JSON.stringify(data));
+    try {
+      const localRaw = localStorage.getItem(KEY);
+      if (localRaw) localData = JSON.parse(localRaw);
+    } catch (err) {
+      console.warn('Could not read local cache:', err);
+    }
 
-  await cloudSave();
+    if (
+      localData &&
+      typeof localData === 'object' &&
+      !Array.isArray(localData) &&
+      Object.keys(localData).length > 0
+    ) {
+      data = localData;
+    }
 
-  render();
-  setSync('Synced');
+    normalizeData();
 
-  return;
-}
+    try {
+      localStorage.setItem(KEY, JSON.stringify(data));
+    } catch (err) {
+      console.warn('Could not update local cache:', err);
+    }
 
-/*
-  No local data exists, so this is a new device.
-  In that case, use the cloud copy.
-*/
-data=row.data;
-normalizeData();
+    render();
 
-localStorage.setItem(KEY,JSON.stringify(data));
+    // Create the first cloud record and wait for its save result.
+    return await cloudSave();
 
-render();
-setSync('Synced');
-
-
-}else{
-
-
-/*
-  No cloud copy exists.
-  Save the current local data to the cloud.
-*/
-normalizeData();
-
-localStorage.setItem(KEY,JSON.stringify(data));
-
-await cloudSave();
-
-render();
-setSync('Saved to cloud');
-
-
-}
-}
-
-function showSignedIn(user){
-  window.mymoneyUser=user;
-  document.getElementById('authOverlay').style.display='none';
-  document.getElementById('accountBar').style.display='flex';
-  document.getElementById('accountEmail').textContent=user.email||'Signed in';
-  loadCloudData(user);
+  } catch (err) {
+    console.error('Cloud loading failed:', err);
+    setSync('Cloud connection failed');
+    alert(
+      'MyMoney could not load your cloud data. ' +
+      'Please check your connection and try again.'
+    );
+    return false;
+  }
 }
 function showSignedOut(){
   window.mymoneyUser=null;
