@@ -224,7 +224,7 @@ button,input,select{font:inherit} button{cursor:pointer}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const KEY='mymoney-v1';
-let data=JSON.parse(localStorage.getItem(KEY)||'null')||{
+let data=(()=>{try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch(err){console.warn('Local browser cache unavailable:',err);return null;}})()||{
  income:3850,
  budget:[
   {name:'Housing',budget:1100,spent:0},
@@ -359,55 +359,113 @@ data.goals.forEach((g,i)=>{
   });
 }
 
-function save(){
-  // Always save locally first
-  localStorage.setItem(KEY,JSON.stringify(data));
+let cloudSaveQueue = Promise.resolve();
+let cloudSaveRevision = 0;
 
-  // Update the screen immediately
-  render();
+function save() {
+  let localSaved = false;
 
-  // Automatically save to the cloud
-  if(window.mymoneyUser && window.supabaseClient){
-    cloudSave();
-  }else{
-    setSync('Saved on this device');
+  // Local storage is only a cache. Its failure must not stop cloud saving.
+  try {
+    localStorage.setItem(KEY, JSON.stringify(data));
+    localSaved = true;
+  } catch (err) {
+    console.warn('Local cache save failed:', err);
+  }
+
+  // A rendering problem must not prevent a cloud save either.
+  try {
+    render();
+  } catch (err) {
+    console.error('Render failed:', err);
+  }
+
+  if (window.mymoneyUser && window.supabaseClient) {
+    void cloudSave();
+  } else {
+    setSync(
+      localSaved
+        ? 'Saved on this device — not synced'
+        : 'Browser storage unavailable — not synced'
+    );
   }
 }
 
-async function cloudSave(){
-  if(!window.mymoneyUser || !window.supabaseClient){
-    setSync('Saved on this device');
-    return;
+function cloudSave() {
+  const user = window.mymoneyUser;
+  const client = window.supabaseClient;
+
+  if (!user || !client) {
+    setSync('Not synced — sign in');
+    return Promise.resolve(false);
   }
 
-  setSync('Saving…');
+  let snapshot;
 
-  try{
-    const {error}=await window.supabaseClient
-      .from('mymoney_data')
-      .upsert(
-        {
-          user_id:window.mymoneyUser.id,
-          data:data,
-          updated_at:new Date().toISOString()
-        },
-        {
-          onConflict:'user_id'
-        }
-      );
+  try {
+    // Save a fixed snapshot so later edits cannot change
+    // the data while this particular request is waiting.
+    snapshot = JSON.parse(JSON.stringify(data));
+  } catch (err) {
+    console.error('Could not prepare cloud data:', err);
+    setSync('Cloud save failed');
+    return Promise.resolve(false);
+  }
 
-    if(error){
-      console.error('Cloud save error:',error);
-      setSync('Sync error');
-      return;
+  const revision = ++cloudSaveRevision;
+
+  const isCurrentSave = () =>
+    window.mymoneyUser?.id === user.id &&
+    revision === cloudSaveRevision;
+
+  const task = async () => {
+    // Never send one account's data to another account.
+    if (!window.mymoneyUser ||
+        window.mymoneyUser.id !== user.id) {
+      return false;
     }
 
-    setSync('Saved to cloud');
+    if (isCurrentSave()) setSync('Saving…');
 
-  }catch(error){
-    console.error('Cloud save failed:',error);
-    setSync('Sync error');
-  }
+    try {
+      const { error } = await client
+        .from('mymoney_data')
+        .upsert(
+          {
+            user_id: user.id,
+            data: snapshot,
+            updated_at: new Date().toISOString()
+          },
+          { onConflict: 'user_id' }
+        );
+
+      if (error) {
+        console.error('Cloud save error:', error);
+        if (isCurrentSave()) {
+          setSync('Cloud save failed — check connection');
+        }
+        return false;
+      }
+
+      if (isCurrentSave()) setSync('Saved to cloud');
+      return true;
+
+    } catch (err) {
+      console.error('Cloud save failed:', err);
+      if (isCurrentSave()) {
+        setSync('Cloud save failed — check connection');
+      }
+      return false;
+    }
+  };
+
+  // Keep writes in order. This prevents an older, slower request
+  // from finishing after a newer request and replacing its data.
+  cloudSaveQueue = cloudSaveQueue
+    .catch(() => false)
+    .then(task);
+
+  return cloudSaveQueue;
 }
 function setSync(text){
   const el=document.getElementById('syncStatus');
