@@ -1856,14 +1856,26 @@ const SUPABASE_PUBLISHABLE_KEY='sb_publishable_ioS5A18woXeM4m3mok_JPQ_dzhOH7l0';
 window.supabaseClient=null;
 
 try{
-  if(window.supabase){
-    window.supabaseClient=window.supabase.createClient(
-      SUPABASE_URL,
-      SUPABASE_PUBLISHABLE_KEY
-    );
-  }
-}catch(err){
-  console.error('Supabase initialization failed:',err);
+  if (window.supabaseClient) {
+  window.supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (session?.user) {
+      // Do not reload all data on routine token refreshes.
+      if (
+        event === 'INITIAL_SESSION' ||
+        event === 'SIGNED_IN' ||
+        window.mymoneyUser?.id !== session.user.id
+      ) {
+        showSignedIn(session.user);
+      }
+    } else if (
+      event === 'INITIAL_SESSION' ||
+      event === 'SIGNED_OUT'
+    ) {
+      showSignedOut();
+    }
+  });
+} else {
+  showSignedOut();
 }
 
 window.mymoneyUser=null;
